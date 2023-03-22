@@ -168,7 +168,7 @@ void registerToQIRTranslation() {
 
         std::unique_ptr<llvm::LLVMContext> llvmContext =
             std::make_unique<llvm::LLVMContext>();
-        llvmContext->setOpaquePointers(false);
+        llvmContext->setOpaquePointers(true);
         auto llvmModule = translateModuleToLLVMIR(op, *llvmContext);
         cudaq::optimizeLLVM(llvmModule.get());
         if (!cudaq::setupTargetTriple(llvmModule.get()))

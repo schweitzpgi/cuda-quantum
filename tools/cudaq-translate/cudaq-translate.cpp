@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
 
   // Some translations do not involve translation to LLVM IR. These translations
   // are done directly from the MLIR Module to an output file.
-  llvm::Optional<std::function<LogicalResult(Operation *, raw_ostream &)>>
+  std::optional<std::function<LogicalResult(Operation *, raw_ostream &)>>
       directTranslation;
   llvm::StringSwitch<std::function<void()>>(convertTo)
       .Case("qir", [&]() { addPipelineToQIR<>(pm); })
@@ -210,7 +210,7 @@ int main(int argc, char **argv) {
 
   // Convert the module to LLVM IR in a new LLVM IR context.
   llvm::LLVMContext llvmContext;
-  llvmContext.setOpaquePointers(false);
+  llvmContext.setOpaquePointers(true);
   auto llvmModule = translateModuleToLLVMIR(module.get(), llvmContext);
   if (!llvmModule)
     cudaq::emitFatalError(module->getLoc(), "Failed to emit LLVM IR");
