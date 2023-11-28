@@ -587,10 +587,10 @@ template <typename ComputeFunction, typename ActionFunction>
   requires isCallableVoidKernel<ComputeFunction> &&
            isCallableVoidKernel<ActionFunction>
 #else
-template <typename ComputeFunction, typename ActionFunction,
-          typename = std::enable_if_t<
-              std::is_invocable_r_v<void, ComputeFunction> &&
-              std::is_invocable_r_v<void, ActionFunction>>>
+template <
+    typename ComputeFunction, typename ActionFunction,
+    typename = std::enable_if_t<std::is_invocable_r_v<void, ComputeFunction> &&
+                                std::is_invocable_r_v<void, ActionFunction>>>
 #endif
 void compute_action(ComputeFunction &&c, ActionFunction &&a) {
   c();
@@ -606,10 +606,10 @@ template <typename ComputeFunction, typename ActionFunction>
   requires isCallableVoidKernel<ComputeFunction> &&
            isCallableVoidKernel<ActionFunction>
 #else
-template <typename ComputeFunction, typename ActionFunction,
-          typename = std::enable_if_t<
-              std::is_invocable_r_v<void, ComputeFunction> &&
-              std::is_invocable_r_v<void, ActionFunction>>>
+template <
+    typename ComputeFunction, typename ActionFunction,
+    typename = std::enable_if_t<std::is_invocable_r_v<void, ComputeFunction> &&
+                                std::is_invocable_r_v<void, ActionFunction>>>
 #endif
 void compute_dag_action(ComputeFunction &&c, ActionFunction &&a) {
   adjoint(c);
