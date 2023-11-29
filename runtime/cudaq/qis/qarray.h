@@ -65,10 +65,7 @@ public:
 #if CUDAQ_USE_STD20
     return std::span(qudits).subspan(0, count);
 #else
-    typename std::vector<value_type>::const_iterator first = qudits.begin();
-    typename std::vector<value_type>::const_iterator last =
-        qudits.begin() + count;
-    return {qudits(first, last)};
+    return {qudits.begin(), count};
 #endif
   }
 
@@ -80,10 +77,7 @@ public:
 #if CUDAQ_USE_STD20
     return std::span(qudits).subspan(size() - count, count);
 #else
-    typename std::vector<value_type>::const_iterator first =
-        qudits.end() - count;
-    typename std::vector<value_type>::const_iterator last = qudits.end();
-    return {qudits(first, last)};
+    return {qudits.end() - count, count};
 #endif
   }
 
@@ -95,11 +89,7 @@ public:
 #if CUDAQ_USE_STD20
     return std::span(qudits).subspan(start, size);
 #else
-    typename std::vector<value_type>::const_iterator first =
-        qudits.begin() + start;
-    typename std::vector<value_type>::const_iterator last =
-        qudits.begin() + start + size;
-    return {qudits(first, last)};
+    return {qudits.begin() + start, size};
 #endif
   }
 

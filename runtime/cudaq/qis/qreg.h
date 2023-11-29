@@ -76,9 +76,9 @@ public:
 
   /// @endcond
 
-  // a qreg cannot be copied
+  // A `qreg` cannot be copied.
   qreg(qreg const &) = delete;
-  // a qreg cannot be moved
+  // A `qreg` cannot be moved.
   qreg(qreg &&) = delete;
 
   /// @brief Iterator interface, begin.
