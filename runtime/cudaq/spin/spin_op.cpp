@@ -9,12 +9,12 @@
 #include "common/EigenDense.h"
 #include "common/EigenSparse.h"
 #include "common/FmtCore.h"
-#include <cudaq/spin_op.h>
-#include <stdint.h>
-#include <unsupported/Eigen/KroneckerProduct>
 #ifdef CUDAQ_HAS_OPENMP
 #include <omp.h>
 #endif
+#include <cudaq/spin_op.h>
+#include <stdint.h>
+#include <unsupported/Eigen/KroneckerProduct>
 #include <algorithm>
 #include <array>
 #include <cassert>

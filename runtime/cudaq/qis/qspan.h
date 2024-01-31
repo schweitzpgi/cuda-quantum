@@ -11,7 +11,9 @@
 #include "cudaq/qis/qudit.h"
 #include "host_config.h"
 #if CUDAQ_USE_STD20
+#if !__APPLE__
 #include <ranges>
+#endif
 #include <span>
 #endif
 
@@ -41,7 +43,7 @@ public:
   // that this span contains.
   using value_type = qudit<Levels>;
 
-#if CUDAQ_USE_STD20
+#if CUDAQ_USE_STD20 && !__APPLE__
 private:
   // Reference to the non-owning span of qudits.
   std::span<value_type, N> qudits;

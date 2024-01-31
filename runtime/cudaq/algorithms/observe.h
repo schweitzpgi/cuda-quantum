@@ -16,7 +16,7 @@
 #include "cudaq/spin_op.h"
 #include "host_config.h"
 #include <functional>
-#if CUDAQ_USE_STD20
+#if CUDAQ_USE_STD20 && !__APPLE__
 #include <ranges>
 #endif
 #include <type_traits>
@@ -234,7 +234,7 @@ observe_result observe(QuantumKernel &&kernel, spin_op H, Args &&...args) {
 /// @brief Compute the expected value of every `spin_op` provided in
 /// `SpinOpContainer` (a range concept) with respect to `kernel(Args...)`.
 /// Return a `std::vector<observe_result>`.
-#if CUDAQ_USE_STD20
+#if CUDAQ_USE_STD20 && !__APPLE__
 template <typename QuantumKernel, typename SpinOpContainer, typename... Args>
   requires ObserveCallValid<QuantumKernel, Args...> &&
            std::ranges::range<SpinOpContainer>

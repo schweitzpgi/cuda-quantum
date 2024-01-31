@@ -104,7 +104,7 @@ void oneQubitApply(QubitArgs &...args) {
 
 /// @brief This function will apply a multi-controlled operation with the given
 /// control register on the single qubit target.
-#if CUDAQ_USE_STD20
+#if CUDAQ_USE_STD20 && !__APPLE__
 template <typename QuantumOp, typename mod = ctrl, typename QubitRange>
   requires(std::ranges::range<QubitRange>)
 #else
@@ -124,7 +124,7 @@ void oneQubitApplyControlledRange(QubitRange &ctrls, qubit &target) {
                                {cudaq::qubitToQuditInfo(target)});
 }
 
-#if CUDAQ_USE_STD20
+#if CUDAQ_USE_STD20 && !__APPLE__
 #define TEMPLATE(SORT)                                                         \
   template <typename mod = SORT, typename QubitRange>                          \
     requires(std::ranges::range<QubitRange>)
@@ -203,7 +203,7 @@ void oneQubitSingleParameterApply(ScalarAngle angle, QubitArgs &...args) {
                                std::is_same_v<mod, adj>);
 }
 
-#if CUDAQ_USE_STD20
+#if CUDAQ_USE_STD20 && !__APPLE__
 template <typename QuantumOp, typename mod = ctrl, typename ScalarAngle,
           typename QubitRange>
   requires(std::ranges::range<QubitRange>)
@@ -229,7 +229,7 @@ void oneQubitSingleParameterControlledRange(ScalarAngle angle,
                                {qubitToQuditInfo(target)});
 }
 
-#if CUDAQ_USE_STD20
+#if CUDAQ_USE_STD20 && !__APPLE__
 #define TEMPLATE(SORT)                                                         \
   template <typename mod = SORT, typename ScalarAngle, typename QubitRange>    \
     requires(std::ranges::range<QubitRange>)
@@ -292,7 +292,7 @@ void swap(QubitArgs &...args) {
   getExecutionManager()->apply("swap", {}, controls, targets);
 }
 
-#if CUDAQ_USE_STD20
+#if CUDAQ_USE_STD20 && !__APPLE__
 template <typename QuantumRegister>
   requires(std::ranges::range<QuantumRegister>)
 #else
@@ -321,7 +321,7 @@ inline void ccx(qubit &q, qubit &r, qubit &s) { x<cudaq::ctrl>(q, r, s); }
 
 /// @brief Apply a general Pauli rotation, takes a qubit register and the size
 /// must be equal to the Pauli word length.
-#if CUDAQ_USE_STD20
+#if CUDAQ_USE_STD20 && !__APPLE__
 template <typename QubitRange>
   requires(std::ranges::range<QubitRange>)
 #else
@@ -355,7 +355,7 @@ void exp_pauli(double theta, const char *pauliWord, QubitArgs &...qubits) {
 
 /// @brief Apply a general Pauli rotation with control qubits and a variadic set
 /// of qubits. The number of qubits must be equal to the Pauli word length.
-#if CUDAQ_USE_STD20
+#if CUDAQ_USE_STD20 && !__APPLE__
 template <typename QuantumRegister, typename... QubitArgs>
   requires(std::ranges::range<QuantumRegister>)
 #else
@@ -403,7 +403,7 @@ inline void reset(qubit &q) {
 }
 
 // Measure all qubits in the range, return vector of 0,1
-#if CUDAQ_USE_STD20
+#if CUDAQ_USE_STD20 && !__APPLE__
 template <typename QubitRange>
   requires std::ranges::range<QubitRange>
 #else
@@ -423,7 +423,7 @@ std::vector<measure_result> mz(QubitRange &q) {
 template <typename... Qs>
 std::vector<measure_result> mz(qubit &q, Qs &&...qs);
 
-#if CUDAQ_USE_STD20
+#if CUDAQ_USE_STD20 && !__APPLE__
 template <typename QubitRange, typename... Qs>
   requires(std::ranges::range<QubitRange>)
 #else
@@ -518,7 +518,7 @@ void control(QuantumKernel &&kernel, qubit &control, Args &&...args) {
 }
 
 // Control the given cudaq kernel on the given register of control qubits
-#if CUDAQ_USE_STD20
+#if CUDAQ_USE_STD20 && !__APPLE__
 template <typename QuantumKernel, typename QuantumRegister, typename... Args>
   requires std::ranges::range<QuantumRegister> &&
            isCallableVoidKernel<QuantumKernel, Args...>

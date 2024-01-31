@@ -43,7 +43,7 @@ if (CMAKE_COMPILER_IS_GNUCXX
 endif()
 
 # We can only build the RestClient support if we have OpenSSL
-if(OPENSSL_FOUND)
+if(OPENSSL_FOUND AND NOT APPLE)
   message(STATUS "OpenSSL Found, building REST Client.")
 
   include(FetchContent)
