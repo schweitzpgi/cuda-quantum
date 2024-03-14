@@ -463,7 +463,7 @@ protected:
     ExecutionEngineOptions opts;
     opts.transformer = [](llvm::Module *m) { return llvm::ErrorSuccess(); };
     opts.enableObjectDump = true;
-    opts.jitCodeGenOptLevel = llvm::CodeGenOpt::None;
+    opts.jitCodeGenOptLevel = llvm::CodeGenOptLevel::None;
     SmallVector<StringRef, 4> sharedLibs;
     for (auto &lib : extraLibPaths) {
       cudaq::info("Extra library loaded: {}", lib);
@@ -499,10 +499,15 @@ protected:
       // this module Op.
       const std::vector<llvm::StringRef> allFunctionNames = [&]() {
         std::vector<llvm::StringRef> allFuncs;
-        for (auto &op : *module.getBody())
-          if (auto funcOp = dyn_cast<LLVM::LLVMFuncOp>(op))
-            if (!funcOp.getFunctionBody().empty())
-              allFuncs.emplace_back(funcOp.getName());
+        for (auto &op : *module.getBody()) {
+          auto funcOp = dyn_cast<LLVM::LLVMFuncOp>(op);
+          if (!funcOp)
+            continue;
+          if (funcOp.getName().starts_with(
+                  cudaq::runtime::cudaqGenPrefixName)) {
+            allFuncs.emplace_back(funcOp.getName());
+          }
+        }
         return allFuncs;
       }();
       // Note: run this verification as a standalone step to decouple IR
@@ -524,13 +529,26 @@ protected:
     opts.llvmModuleBuilder =
         [](Operation *module,
            llvm::LLVMContext &llvmContext) -> std::unique_ptr<llvm::Module> {
-      llvmContext.setOpaquePointers(false);
       auto llvmModule = translateModuleToLLVMIR(module, llvmContext);
       if (!llvmModule) {
         llvm::errs() << "Failed to emit LLVM IR\n";
         return nullptr;
       }
-      ExecutionEngine::setupTargetTriple(llvmModule.get());
+      // Create target machine and configure the LLVM Module
+      auto tmBuilderOrError = llvm::orc::JITTargetMachineBuilder::detectHost();
+      if (!tmBuilderOrError) {
+        llvm::errs() << "Could not create JITTargetMachineBuilder\n";
+        return {};
+      }
+
+      auto tmOrError = tmBuilderOrError->createTargetMachine();
+      if (!tmOrError) {
+        llvm::errs() << "Could not create TargetMachine\n";
+        return {};
+      }
+
+      ExecutionEngine::setupTargetTripleAndDataLayout(llvmModule.get(),
+                                                      tmOrError.get().get());
       return llvmModule;
     };
 

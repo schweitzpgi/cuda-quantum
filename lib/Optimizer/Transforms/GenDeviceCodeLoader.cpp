@@ -86,24 +86,21 @@ public:
     // Create a call graph to track kernel dependency.
     mlir::CallGraph callGraph(module);
     for (auto &op : *module.getBody()) {
-      auto funcOp = dyn_cast<func::FuncOp>(op);
-      if (!funcOp)
-        continue;
-      if (!funcOp.getName().startswith(cudaq::runtime::cudaqGenPrefixName))
-        continue;
-      if (funcOp->hasAttr(cudaq::generatorAnnotation) || funcOp.empty())
-        continue;
-      auto className =
-          funcOp.getName().drop_front(cudaq::runtime::cudaqGenPrefixLength);
-      LLVM_DEBUG(llvm::dbgs() << "processing function " << className << '\n');
-      // Generate LLVM-IR dialect to register the device code loading.
-      std::string thunkName = className.str() + ".thunk";
-      std::string funcCode;
-      llvm::raw_string_ostream strOut(funcCode);
-      OpPrintingFlags opf;
-      opf.enableDebugInfo(/*enable=*/true,
-                          /*pretty=*/false);
-      strOut << "module attributes " << module->getAttrDictionary() << " { ";
+      // FIXME: May not be a FuncOp in the future.
+      if (auto funcOp = dyn_cast<func::FuncOp>(op)) {
+        if (!funcOp.getName().starts_with(cudaq::runtime::cudaqGenPrefixName))
+          continue;
+        auto className =
+            funcOp.getName().drop_front(cudaq::runtime::cudaqGenPrefixLength);
+        LLVM_DEBUG(llvm::dbgs() << "processing function " << className << '\n');
+        // Generate LLVM-IR dialect to register the device code loading.
+        std::string thunkName = className.str() + ".thunk";
+        std::string funcCode;
+        llvm::raw_string_ostream strOut(funcCode);
+        OpPrintingFlags opf;
+        opf.enableDebugInfo(/*enable=*/true,
+                            /*pretty=*/false);
+        strOut << "module attributes " << module->getAttrDictionary() << " { ";
 
       // We'll also need any non-inlined functions that are
       // called by our cudaq kernel
@@ -124,6 +121,60 @@ public:
           parentFuncOp.print(strOut, opf);
           strOut << '\n';
         }
+
+        // Include the generated kernel thunk if present since it is on the
+        // callee side of the launchKernel() callback.
+        if (auto *thunkFunc = module.lookupSymbol(thunkName)) {
+          LLVM_DEBUG(llvm::dbgs() << "found thunk function\n");
+          strOut << *thunkFunc << '\n';
+        }
+        if (auto *zeroDynRes =
+                module.lookupSymbol("__nvqpp_zeroDynamicResult")) {
+          LLVM_DEBUG(llvm::dbgs() << "found zero dyn result function\n");
+          strOut << *zeroDynRes << '\n';
+        }
+        if (auto *createDynRes =
+                module.lookupSymbol("__nvqpp_createDynamicResult")) {
+          LLVM_DEBUG(llvm::dbgs() << "found create dyn result function\n");
+          strOut << *createDynRes << '\n';
+        }
+        for (auto *op : declarations)
+          strOut << *op << '\n';
+        strOut << "\n}\n" << '\0';
+        auto devCode = builder.create<LLVM::GlobalOp>(
+            loc, cudaq::opt::factory::getStringType(ctx, funcCode.size()),
+            /*isConstant=*/true, LLVM::Linkage::Private,
+            className.str() + "CodeHolder.extract_device_code",
+            builder.getStringAttr(funcCode), /*alignment=*/0);
+        auto devName = builder.create<LLVM::GlobalOp>(
+            loc, cudaq::opt::factory::getStringType(ctx, className.size() + 1),
+            /*isConstant=*/true, LLVM::Linkage::Private,
+            className.str() + "CodeHolder.extract_device_name",
+            builder.getStringAttr(className.str() + '\0'), /*alignment=*/0);
+        auto initFun = builder.create<LLVM::LLVMFuncOp>(
+            loc, className.str() + ".init_func",
+            LLVM::LLVMFunctionType::get(cudaq::opt::factory::getVoidType(ctx),
+                                        {}),
+            LLVM::Linkage::External);
+        auto insPt = builder.saveInsertionPoint();
+        auto *initFunEntry = initFun.addEntryBlock(builder);
+        builder.setInsertionPointToStart(initFunEntry);
+        auto devRef = builder.create<LLVM::AddressOfOp>(
+            loc, cudaq::opt::factory::getPointerType(devName.getType()),
+            devName.getSymName());
+        auto codeRef = builder.create<LLVM::AddressOfOp>(
+            loc, cudaq::opt::factory::getPointerType(devCode.getType()),
+            devCode.getSymName());
+        auto castDevRef = builder.create<LLVM::BitcastOp>(
+            loc, cudaq::opt::factory::getPointerType(ctx), devRef);
+        auto castCodeRef = builder.create<LLVM::BitcastOp>(
+            loc, cudaq::opt::factory::getPointerType(ctx), codeRef);
+        builder.create<LLVM::CallOp>(loc, std::nullopt, "deviceCodeHolderAdd",
+                                     ValueRange{castDevRef, castCodeRef});
+        builder.create<LLVM::ReturnOp>(loc, ValueRange{});
+        builder.restoreInsertionPoint(insPt);
+        cudaq::opt::factory::createGlobalCtorCall(
+            module, mlir::FlatSymbolRefAttr::get(ctx, initFun.getName()));
       }
 
       // Include the generated kernel thunk if present since it is on the

@@ -17,14 +17,14 @@ include "cudaq/Optimizer/Dialect/CC/CCInterfaces.td"
 include "cudaq/Optimizer/Dialect/CC/CCTypes.td"
 include "cudaq/Optimizer/Dialect/Quake/QuakeTypes.td"
 
-def AnyPointerType : Type<CPred<"$_self.isa<mlir::LLVM::LLVMPointerType,"
-                          "cudaq::cc::PointerType>()">, "any pointer type">;
+def AnyPointerType : Type<CPred<"isa<mlir::LLVM::LLVMPointerType,"
+                     "cudaq::cc::PointerType>($_self)">, "any pointer type">;
 
-def AnyCallableType : Type<CPred<"$_self.isa<cudaq::cc::CallableType, "
-                          "mlir::FunctionType>()">, "any callable type">;
+def AnyCallableType : Type<CPred<"isa<cudaq::cc::CallableType, "
+                      "mlir::FunctionType>($_self)">, "any callable type">;
 
-def AnyAggregateType : Type<CPred<"$_self.isa<cudaq::cc::StructType, "
-                            "cudaq::cc::ArrayType>()">, "any aggregate type">;
+def AnyAggregateType : Type<CPred<"isa<cudaq::cc::StructType, "
+                       "cudaq::cc::ArrayType>($_self)">, "any aggregate type">;
 
 //===----------------------------------------------------------------------===//
 // Base operation definition.
@@ -40,8 +40,7 @@ class CCOp<string mnemonic, list<Trait> traits = []> :
 def cc_ScopeOp : CCOp<"scope",
         [AutomaticAllocationScope, RecursiveMemoryEffects, NoRegionArguments,
          DeclareOpInterfaceMethods<RegionBranchOpInterface,
-                                   ["getNumRegionInvocations",
-                                    "getRegionInvocationBounds"]>]> {
+          ["getNumRegionInvocations", "getRegionInvocationBounds"]>]> {
   let summary = "A compound statement in which allocations are scoped.";
   let description = [{
     A ScopeOp is used to delineate the scope of local allocations, such as
@@ -304,12 +303,14 @@ def cc_LoopOp : CCOp<"loop",
     mlir::Block::BlockArgListType getWhileArguments() {
       return getWhileBlock()->getArguments();
     }
-
+    std::size_t getNumWhileArguments() { return getWhileArguments().size(); }
     mlir::Block *getDoEntryBlock() { return &getBodyRegion().front(); }
     mlir::Block::BlockArgListType getDoEntryArguments() {
       return getDoEntryBlock()->getArguments();
     }
-
+    std::size_t getNumDoEntryArguments() {
+      return getDoEntryArguments().size();
+    }
     bool hasStep() { return !getStepRegion().empty(); }
     mlir::Block *getStepBlock() {
       // The step region is expected to have 0 or 1 block.
@@ -320,6 +321,7 @@ def cc_LoopOp : CCOp<"loop",
         return getStepBlock()->getArguments();
       return {};
     }
+    std::size_t getNumStepArguments() { return getStepArguments().size(); }
 
     bool hasPythonElse() { return !getElseRegion().empty(); }
     mlir::Block *getElseEntryBlock() {
@@ -330,8 +332,7 @@ def cc_LoopOp : CCOp<"loop",
         mlir::Block::BlockArgListType{};
     }
 
-    mlir::OperandRange
-    getSuccessorEntryOperands(std::optional<unsigned> index);
+    mlir::OperandRange getEntrySuccessorOperands(mlir::RegionBranchPoint point);
 
     bool hasBreakInBody();
   }];
@@ -343,8 +344,8 @@ def cc_LoopOp : CCOp<"loop",
 
 def cc_IfOp : CCOp<"if",
     [DeclareOpInterfaceMethods<RegionBranchOpInterface,
-                               ["getNumRegionInvocations",
-                                "getRegionInvocationBounds"]>,
+      ["getNumRegionInvocations", "getRegionInvocationBounds",
+       "getEntrySuccessorRegions"]>,
      RecursiveMemoryEffects, LinearTypeArgsTrait]> {
   let summary = "if-then-else operation";
   let description = [{
@@ -824,7 +825,7 @@ def cc_AllocaOp : CCOp<"alloca", [
 def cc_LoadOp : CCOp<"load",
     [TypesMatchWith<"result type matches element type of pointer value",
         "ptrvalue", "result",
-        "$_self.cast<cudaq::cc::PointerType>().getElementType()">]> {
+        "cast<cudaq::cc::PointerType>($_self).getElementType()">]> {
   let summary = "Load a value from a pointer into a virtual register.";
   let description = [{
     A LoadOp is used to load a value from a memory location, specified by a
@@ -849,7 +850,7 @@ def cc_LoadOp : CCOp<"load",
 def cc_StoreOp : CCOp<"store",
     [TypesMatchWith<"type of value matches element type of pointer",
         "ptrvalue", "value",
-        "$_self.cast<cudaq::cc::PointerType>().getElementType()">]> {
+        "cast<cudaq::cc::PointerType>($_self).getElementType()">]> {
   let summary = "Store a virtual register value to a memory location.";
   let description = [{
     A StoreOp is used to store the value from a virtual register to a memory
@@ -1438,6 +1439,8 @@ def cc_CallCallableOp : CCOp<"call_callable", [CallOpInterface]> {
   }];
 
   let extraClassDeclaration = [{
+    static constexpr llvm::StringRef getCalleeAttrNameStr() { return "callee"; }
+
     /// Get the argument operands to the called function.
     operand_range getArgOperands() {
       return {arg_operand_begin(), arg_operand_end()};
@@ -1449,9 +1452,18 @@ def cc_CallCallableOp : CCOp<"call_callable", [CallOpInterface]> {
     /// Return the callee of this operation.
     mlir::CallInterfaceCallable getCallableForCallee() { return getCallee(); }
 
+    mlir::MutableOperandRange getArgOperandsMutable() {
+      return getArgsMutable();
+    }
+
     mlir::FunctionType getFunctionType() {
       return mlir::FunctionType::get(getContext(), getOperands().getType(),
         getResults().getTypes());
+    }
+
+    /// Set the callee for this operation.
+    void setCalleeFromCallable(mlir::CallInterfaceCallable callee) {
+      (*this)->setAttr(getCalleeAttrNameStr(), callee.get<mlir::SymbolRefAttr>());
     }
   }];
 }

@@ -99,9 +99,10 @@ Value factory::packIsArrayAndLengthArray(Location loc,
   // operand is a veq<N>, and 0 otherwise.
   auto i64Type = rewriter.getI64Type();
   auto context = rewriter.getContext();
-  Value isArrayAndLengthArr = createLLVMTemporary(
-      loc, rewriter, LLVM::LLVMPointerType::get(i64Type), numOperands);
-  auto intPtrTy = LLVM::LLVMPointerType::get(i64Type);
+  auto alignment = IntegerAttr::get(i64Type, 8);
+  auto ptrTy = LLVM::LLVMPointerType::get(context);
+  Value isArrayAndLengthArr = rewriter.create<LLVM::AllocaOp>(
+      loc, ptrTy, numOperands, alignment, i64Type);
   Value zero = rewriter.create<arith::ConstantIntOp>(loc, 0, 64);
   auto getSizeSymbolRef = opt::factory::createLLVMFunctionSymbol(
       opt::QIRArrayGetSize, i64Type, {opt::getArrayType(context)},
@@ -110,18 +111,18 @@ Value factory::packIsArrayAndLengthArray(Location loc,
     auto operand = iter.value();
     auto i = iter.index();
     Value idx = rewriter.create<arith::ConstantIntOp>(loc, i, 64);
-    Value ptr = rewriter.create<LLVM::GEPOp>(loc, intPtrTy, isArrayAndLengthArr,
-                                             ValueRange{idx});
+    Value ptr = rewriter.create<LLVM::GEPOp>(
+        loc, ptrTy, i64Type, isArrayAndLengthArr, ValueRange{idx});
     Value element;
-    if (operand.getType() == opt::getQubitType(context))
+    if (operand.getType() == opt::getQubitType(context)) {
       element = zero;
-    else
+    } else {
       // get array size with the runtime function
       element = rewriter
-                    .create<LLVM::CallOp>(loc, rewriter.getI64Type(),
-                                          getSizeSymbolRef, ValueRange{operand})
+                    .create<LLVM::CallOp>(loc, i64Type, getSizeSymbolRef,
+                                          ValueRange{operand})
                     .getResult();
-
+    }
     rewriter.create<LLVM::StoreOp>(loc, element, ptr);
   }
   return isArrayAndLengthArr;
@@ -306,8 +307,33 @@ cc::LoopOp factory::createMonotonicLoop(
   return loop;
 }
 
-cc::ArrayType factory::genHostStringType(ModuleOp mod) {
-  auto *ctx = mod.getContext();
+// FIXME: some ABIs may return a small struct in registers rather than via an
+// sret pointer.
+//
+// On x86_64,
+//   pair of:  argument         return value    packed from msb to lsb
+//    i32   :   i64              i64             (second, first)
+//    i64   :   i64, i64         { i64, i64 }
+//    f32   :   <2 x float>      <2 x float>
+//    f64   :   double, double   { double, double }
+//
+// On aarch64,
+//   pair of:  argument         return value    packed from msb to lsb
+//    i32   :   i64              i64             (second, first)
+//    i64   :   [2 x i64]        [2 x i64]
+//    f32   :   [2 x float]      { float, float }
+//    f64   :   [2 x double]     { double, double }
+bool factory::hasHiddenSRet(FunctionType funcTy) {
+  // If a function has more than 1 result, the results are promoted to a
+  // structured return argument. Otherwise, if there is 1 result and it is an
+  // aggregate type, then it is promoted to a structured return argument.
+  auto numResults = funcTy.getNumResults();
+  return numResults > 1 || (numResults == 1 &&
+                            isa<cc::SpanLikeType, cc::StructType, cc::ArrayType,
+                                cc::CallableType>(funcTy.getResult(0)));
+}
+
+cc::StructType factory::stlStringType(MLIRContext *ctx) {
   auto i8Ty = IntegerType::get(ctx, 8);
   auto sizeAttr = mod->getAttr(cudaq::runtime::sizeofStringAttrName);
   if (sizeAttr) {

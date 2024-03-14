@@ -174,7 +174,7 @@ private:
       SmallVector<std::size_t> mapping_v2p(mappingAttr.size());
       std::transform(
           mappingAttr.begin(), mappingAttr.end(), mapping_v2p.begin(),
-          [](Attribute attr) { return attr.cast<IntegerAttr>().getInt(); });
+          [](Attribute attr) { return cast<IntegerAttr>(attr).getInt(); });
 
       // Next create newQubitValues[]
       DenseMap<std::size_t, Value> newQubitValues;
@@ -211,7 +211,7 @@ struct AppendMeasurements : public OpRewritePattern<func::FuncOp> {
 
   LogicalResult matchAndRewrite(func::FuncOp funcOp,
                                 PatternRewriter &rewriter) const override {
-    rewriter.startRootUpdate(funcOp);
+    rewriter.startOpModification(funcOp);
 
     // Use an Analysis to count the number of qubits.
     auto iter = infoMap.find(funcOp);
@@ -293,10 +293,9 @@ struct AppendMeasurements : public OpRewritePattern<func::FuncOp> {
         qubitsToMeasure.push_back(qubitVal);
     }
 
-    auto measTy = quake::MeasureType::get(builder.getContext());
-    auto wireTy = quake::WireType::get(builder.getContext());
-    for (auto &[measureNum, qubitToMeasure] :
-         llvm::enumerate(qubitsToMeasure)) {
+    for (auto iter : llvm::enumerate(qubitsToMeasure)) {
+      auto measureNum = iter.index();
+      auto qubitToMeasure = iter.value();
       // add the measure
       char regName[16];
       std::snprintf(regName, sizeof(regName), "r%05lu", measureNum);
@@ -311,7 +310,7 @@ struct AppendMeasurements : public OpRewritePattern<func::FuncOp> {
       }
     }
 
-    rewriter.finalizeRootUpdate(funcOp);
+    rewriter.finalizeOpModification(funcOp);
     return success();
   }
 };

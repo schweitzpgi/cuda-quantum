@@ -39,7 +39,7 @@ getConversionMap(ModuleOp module) {
           cudaq::runtime::mangledNameMap)) {
     for (auto namedAttr : mangledNameMap) {
       auto key = namedAttr.getName();
-      auto val = namedAttr.getValue().cast<StringAttr>().getValue();
+      auto val = cast<StringAttr>(namedAttr.getValue()).getValue();
       result.insert({val, key});
     }
     return result;
@@ -62,16 +62,12 @@ public:
     if (!isIndirectFunc(call.getCallee(), indirectMap))
       return failure();
 
-    auto callee = call.getCallee();
-    StringRef directName = indirectMap[callee];
-    auto *ctx = rewriter.getContext();
-    auto loc = call.getLoc();
-    auto funcTy = call.getCalleeType();
-    cudaq::opt::factory::getOrAddFunc(loc, directName, funcTy, module);
-    rewriter.startRootUpdate(call);
-    call.setCalleeAttr(SymbolRefAttr::get(ctx, directName));
-    rewriter.finalizeRootUpdate(call);
+    rewriter.startOpModification(op);
+    auto callee = op.getCallee();
+    llvm::StringRef directName = indirectMap[callee];
+    op.setCalleeAttr(SymbolRefAttr::get(op.getContext(), directName));
     LLVM_DEBUG(llvm::dbgs() << "Rewriting " << directName << '\n');
+    rewriter.finalizeOpModification(op);
     return success();
   }
 

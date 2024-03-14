@@ -23,6 +23,7 @@ target_link_libraries(CircuitCheck
   MLIRArithDialect
   MLIRParser
   MLIRPass
+  MLIRSCFDialect
   MLIRTransforms
 
   CCDialect

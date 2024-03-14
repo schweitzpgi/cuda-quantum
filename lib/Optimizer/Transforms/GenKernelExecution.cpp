@@ -1902,7 +1902,7 @@ public:
     SmallVector<func::FuncOp> workList;
     for (auto &op : *module.getBody())
       if (auto funcOp = dyn_cast<func::FuncOp>(op))
-        if (funcOp.getName().startswith(cudaq::runtime::cudaqGenPrefixName) &&
+        if (funcOp.getName().starts_with(cudaq::runtime::cudaqGenPrefixName) &&
             hasLegalType(funcOp.getFunctionType()))
           workList.push_back(funcOp);
 
@@ -1990,9 +1990,81 @@ public:
 
       // Generate a function at startup to register this kernel as having
       // been processed for kernel execution.
-      auto initFun = registerKernelWithRuntimeForExecution(
-          loc, builder, classNameStr, kernelNameObj, argsCreatorFunc,
-          mangledName);
+      auto initFun = builder.create<LLVM::LLVMFuncOp>(
+          loc, classNameStr + ".kernelRegFunc",
+          LLVM::LLVMFunctionType::get(cudaq::opt::factory::getVoidType(ctx),
+                                      {}));
+      {
+        OpBuilder::InsertionGuard guard(builder);
+        auto *initFunEntry = initFun.addEntryBlock(builder);
+        builder.setInsertionPointToStart(initFunEntry);
+        auto kernRef = builder.create<LLVM::AddressOfOp>(
+            loc, cudaq::opt::factory::getPointerType(kernelNameObj.getType()),
+            kernelNameObj.getSymName());
+        auto castKernRef =
+            builder.create<cudaq::cc::CastOp>(loc, ptrType, kernRef);
+        builder.create<func::CallOp>(loc, std::nullopt, cudaqRegisterKernelName,
+                                     ValueRange{castKernRef});
+
+        // Register the argsCreator too
+        auto ptrPtrType = cudaq::cc::PointerType::get(ptrType);
+        auto argsCreatorFuncType = FunctionType::get(
+            ctx, {ptrPtrType, ptrPtrType}, {builder.getI64Type()});
+        Value loadArgsCreator = builder.create<func::ConstantOp>(
+            loc, argsCreatorFuncType, argsCreatorFunc.getName());
+        auto castLoadArgsCreator = builder.create<cudaq::cc::FuncToPtrOp>(
+            loc, ptrType, loadArgsCreator);
+        builder.create<func::CallOp>(
+            loc, std::nullopt, cudaqRegisterArgsCreator,
+            ValueRange{castKernRef, castLoadArgsCreator});
+
+        // Check if this is a lambda mangled name
+        auto demangledPtr = abi::__cxa_demangle(mangledName.str().c_str(),
+                                                nullptr, nullptr, nullptr);
+        if (demangledPtr) {
+          std::string demangledName(demangledPtr);
+          demangledName = std::regex_replace(
+              demangledName, std::regex("::operator()(.*)"), "");
+          if (demangledName.find("$_") != std::string::npos) {
+            auto insertPoint = builder.saveInsertionPoint();
+            builder.setInsertionPointToStart(module.getBody());
+
+            // Create the function if it doesn't already exist.
+            if (!module.lookupSymbol<LLVM::LLVMFuncOp>(cudaqRegisterLambdaName))
+              builder.create<LLVM::LLVMFuncOp>(
+                  module.getLoc(), cudaqRegisterLambdaName,
+                  LLVM::LLVMFunctionType::get(
+                      cudaq::opt::factory::getVoidType(ctx),
+                      {cudaq::opt::factory::getPointerType(ctx),
+                       cudaq::opt::factory::getPointerType(ctx)}));
+
+            // Create this global name, it is unique for any lambda
+            // bc classNameStr contains the parentFunc + varName
+            auto lambdaName = builder.create<LLVM::GlobalOp>(
+                loc,
+                cudaq::opt::factory::getStringType(ctx,
+                                                   demangledName.size() + 1),
+                /*isConstant=*/true, LLVM::Linkage::External,
+                classNameStr + ".lambdaName",
+                builder.getStringAttr(demangledName + '\0'), /*alignment=*/0);
+
+            builder.restoreInsertionPoint(insertPoint);
+            auto lambdaRef = builder.create<LLVM::AddressOfOp>(
+                loc, cudaq::opt::factory::getPointerType(lambdaName.getType()),
+                lambdaName.getSymName());
+
+            auto castLambdaRef = builder.create<cudaq::cc::CastOp>(
+                loc, cudaq::opt::factory::getPointerType(ctx), lambdaRef);
+            auto castKernelRef = builder.create<cudaq::cc::CastOp>(
+                loc, cudaq::opt::factory::getPointerType(ctx), castKernRef);
+            builder.create<LLVM::CallOp>(
+                loc, std::nullopt, cudaqRegisterLambdaName,
+                ValueRange{castLambdaRef, castKernelRef});
+          }
+        }
+
+        builder.create<LLVM::ReturnOp>(loc, ValueRange{});
+      }
 
       // Create a global with a default ctor to be run at program startup.
       // The ctor will execute the above function, which will register this

@@ -57,15 +57,11 @@ maybeUnpackOperands(OpBuilder &builder, Location loc, ValueRange operands,
     return std::make_pair(operands, SmallVector<Value>{});
 
   if (operands.size() > 1)
-    return std::make_pair(SmallVector<Value>{operands.take_back(targetCount)},
-                          SmallVector<Value>{operands.drop_back(targetCount)});
-
-  SmallVector<Value> targets = operands.take_back(targetCount);
-  Value last_target = operands.back();
-
-  if (last_target.getType().isa<quake::VeqType>()) {
-    // Split the vector. Last `targetCount` are targets, front `N-targetCount`
-    // are controls.
+    return std::make_pair(SmallVector<Value>{operands.take_back()},
+                          SmallVector<Value>{operands.drop_back(1)});
+  Value target = operands.back();
+  if (isa<quake::VeqType>(target.getType())) {
+    // Split the vector. Last one is target, front N-1 are controls.
     auto vecSize = builder.create<quake::VeqSizeOp>(
         loc, builder.getIntegerType(64), targets);
     auto size = builder.create<cudaq::cc::CastOp>(
@@ -155,7 +151,7 @@ bool buildOp(OpBuilder &builder, Location loc, ValueRange operands,
     }
   } else {
     assert(operands.size() >= 1 && "must be at least 1 operand");
-    if ((operands.size() == 1) && operands[0].getType().isa<quake::VeqType>()) {
+    if ((operands.size() == 1) && isa<quake::VeqType>(operands[0].getType())) {
       auto target = operands[0];
       if (!negations.empty())
         reportNegateError();
@@ -202,7 +198,7 @@ static Value getConstantInt(OpBuilder &builder, Location loc,
 
 static Value getConstantInt(OpBuilder &builder, Location loc,
                             const uint64_t value, Type intTy) {
-  assert(intTy.isa<IntegerType>());
+  assert(isa<IntegerType>(intTy));
   return builder.create<arith::ConstantIntOp>(loc, value, intTy);
 }
 
@@ -324,7 +320,7 @@ static void castToSameType(OpBuilder builder, Location loc,
     return;
   auto lhsTy = lhs.getType();
   auto rhsTy = rhs.getType();
-  if (lhsTy.isa<IntegerType>() && rhsTy.isa<IntegerType>()) {
+  if (isa<IntegerType>(lhsTy) && isa<IntegerType>(rhsTy)) {
     if (lhsTy.getIntOrFloatBitWidth() < rhsTy.getIntOrFloatBitWidth()) {
       auto mode = (lhsType && lhsType->isUnsignedIntegerOrEnumerationType())
                       ? cudaq::cc::CastOpMode::Unsigned
@@ -338,7 +334,7 @@ static void castToSameType(OpBuilder builder, Location loc,
     rhs = builder.create<cudaq::cc::CastOp>(loc, lhs.getType(), rhs, mode);
     return;
   }
-  if (lhsTy.isa<FloatType>() && rhsTy.isa<FloatType>()) {
+  if (isa<FloatType>(lhsTy) && isa<FloatType>(rhsTy)) {
     if (lhsTy.getIntOrFloatBitWidth() < rhsTy.getIntOrFloatBitWidth()) {
       lhs = builder.create<cudaq::cc::CastOp>(loc, rhs.getType(), lhs);
       return;
@@ -346,18 +342,18 @@ static void castToSameType(OpBuilder builder, Location loc,
     rhs = builder.create<cudaq::cc::CastOp>(loc, lhs.getType(), rhs);
     return;
   }
-  if (lhsTy.isa<FloatType>() && rhsTy.isa<IntegerType>()) {
-    auto mode = (rhsType && rhsType->isUnsignedIntegerOrEnumerationType())
-                    ? cudaq::cc::CastOpMode::Unsigned
-                    : cudaq::cc::CastOpMode::Signed;
-    rhs = builder.create<cudaq::cc::CastOp>(loc, lhs.getType(), rhs, mode);
+  if (isa<FloatType>(lhsTy) && isa<IntegerType>(rhsTy)) {
+    if (rhsType && rhsType->isUnsignedIntegerOrEnumerationType())
+      rhs = builder.create<arith::UIToFPOp>(loc, lhs.getType(), rhs);
+    else
+      rhs = builder.create<arith::SIToFPOp>(loc, lhs.getType(), rhs);
     return;
   }
-  if (lhsTy.isa<IntegerType>() && rhsTy.isa<FloatType>()) {
-    auto mode = (lhsType && lhsType->isUnsignedIntegerOrEnumerationType())
-                    ? cudaq::cc::CastOpMode::Unsigned
-                    : cudaq::cc::CastOpMode::Signed;
-    lhs = builder.create<cudaq::cc::CastOp>(loc, rhs.getType(), lhs, mode);
+  if (isa<IntegerType>(lhsTy) && isa<FloatType>(rhsTy)) {
+    if (lhsType && lhsType->isUnsignedIntegerOrEnumerationType())
+      lhs = builder.create<arith::UIToFPOp>(loc, rhs.getType(), lhs);
+    else
+      lhs = builder.create<arith::SIToFPOp>(loc, rhs.getType(), lhs);
     return;
   }
   TODO_loc(loc, "conversion of operands in binary expression");
@@ -560,12 +556,12 @@ bool QuakeBridgeVisitor::VisitUnaryOperator(clang::UnaryOperator *x) {
   case clang::UnaryOperatorKind::UO_Minus: {
     auto subExpr = popValue();
     auto resTy = subExpr.getType();
-    if (resTy.isa<IntegerType>())
+    if (isa<IntegerType>(resTy))
       return pushValue(builder.create<arith::MulIOp>(
           loc, subExpr,
           getConstantInt(builder, loc, -1, resTy.getIntOrFloatBitWidth())));
 
-    if (resTy.isa<FloatType>()) {
+    if (isa<FloatType>(resTy)) {
       auto neg_one = opt::factory::createFloatConstant(loc, builder, -1.0,
                                                        cast<FloatType>(resTy));
       return pushValue(builder.create<arith::MulFOp>(loc, subExpr, neg_one));
@@ -596,8 +592,14 @@ Value QuakeBridgeVisitor::floatingPointCoercion(Location loc, Type toType,
   auto fromType = value.getType();
   if (toType == fromType)
     return value;
-  assert(fromType.isa<FloatType>() && toType.isa<FloatType>());
-  return builder.create<cudaq::cc::CastOp>(loc, toType, value);
+  if (isa<IntegerType>(fromType) && isa<IntegerType>(toType)) {
+    if (fromType.getIntOrFloatBitWidth() < toType.getIntOrFloatBitWidth())
+      return builder.create<arith::ExtFOp>(loc, toType, value);
+    if (fromType.getIntOrFloatBitWidth() > toType.getIntOrFloatBitWidth())
+      return builder.create<arith::TruncFOp>(loc, toType, value);
+    TODO_loc(loc, "floating point types are distinct and same size");
+  }
+  TODO_loc(loc, "Float conversion but not floating point types");
 }
 
 Value QuakeBridgeVisitor::integerCoercion(Location loc,
@@ -607,12 +609,15 @@ Value QuakeBridgeVisitor::integerCoercion(Location loc,
   if (dstTy == fromTy)
     return srcVal;
 
-  assert(fromTy.isa<IntegerType>() && dstTy.isa<IntegerType>());
-  if (fromTy.getIntOrFloatBitWidth() < dstTy.getIntOrFloatBitWidth()) {
-    auto mode = (clangTy->isUnsignedIntegerOrEnumerationType())
-                    ? cudaq::cc::CastOpMode::Unsigned
-                    : cudaq::cc::CastOpMode::Signed;
-    return builder.create<cudaq::cc::CastOp>(loc, dstTy, srcVal, mode);
+  if (isa<IntegerType>(fromTy) && isa<IntegerType>(dstTy)) {
+    if (fromTy.getIntOrFloatBitWidth() < dstTy.getIntOrFloatBitWidth()) {
+      if (clangTy->isUnsignedIntegerOrEnumerationType())
+        return builder.create<arith::ExtUIOp>(loc, dstTy, srcVal);
+      return builder.create<arith::ExtSIOp>(loc, dstTy, srcVal);
+    }
+    if (fromTy.getIntOrFloatBitWidth() > dstTy.getIntOrFloatBitWidth())
+      return builder.create<arith::TruncIOp>(loc, dstTy, srcVal);
+    TODO_loc(loc, "Types are not the same but have the same length");
   }
   assert(fromTy.getIntOrFloatBitWidth() > dstTy.getIntOrFloatBitWidth());
   return builder.create<cudaq::cc::CastOp>(loc, dstTy, srcVal);
@@ -859,7 +864,7 @@ bool QuakeBridgeVisitor::VisitBinaryOperator(clang::BinaryOperator *x) {
     rhs = maybeLoadValue(rhs);
     lhs = maybeLoadValue(lhs);
     // Floating point comparison?
-    if (lhs.getType().isa<FloatType>()) {
+    if (isa<FloatType>(lhs.getType())) {
       arith::CmpFPredicate pred;
       switch (x->getOpcode()) {
       case clang::BinaryOperatorKind::BO_LT:
@@ -1508,7 +1513,7 @@ bool QuakeBridgeVisitor::VisitCallExpr(clang::CallExpr *x) {
       // Measurements always return a bool or a std::vector<bool>.
       bool useStdvec =
           (args.size() > 1) ||
-          (args.size() == 1 && args[0].getType().isa<quake::VeqType>());
+          (args.size() == 1 && isa<quake::VeqType>(args[0].getType()));
       auto measure = [&]() -> Value {
         Type measTy = quake::MeasureType::get(builder.getContext());
         if (useStdvec)
@@ -2269,9 +2274,9 @@ bool QuakeBridgeVisitor::VisitCXXOperatorCallExpr(
       // are accessing it like theta[i].
       auto indexVar = popValue();
       auto svec = popValue();
-      if (svec.getType().isa<cc::PointerType>())
+      if (isa<cc::PointerType>(svec.getType()))
         svec = builder.create<cc::LoadOp>(loc, svec);
-      if (!svec.getType().isa<cc::StdvecType>()) {
+      if (!isa<cc::StdvecType>(svec.getType())) {
         TODO_x(loc, x, mangler, "vector dereference");
         return false;
       }
@@ -2289,11 +2294,9 @@ bool QuakeBridgeVisitor::VisitCXXOperatorCallExpr(
       // likely going to pack the booleans as bits in words.
       auto indexVar = popValue();
       auto svec = popValue();
-      assert(svec.getType().isa<cc::StdvecType>());
-      auto i8Ty = builder.getI8Type();
-      auto elePtrTy = cc::PointerType::get(i8Ty);
-      auto eleArrTy = cc::PointerType::get(cc::ArrayType::get(i8Ty));
-      auto vecPtr = builder.create<cc::StdvecDataOp>(loc, eleArrTy, svec);
+      assert(isa<cc::StdvecType>(svec.getType()));
+      auto elePtrTy = cc::PointerType::get(builder.getI8Type());
+      auto vecPtr = builder.create<cc::StdvecDataOp>(loc, elePtrTy, svec);
       auto eleAddr = builder.create<cc::ComputePtrOp>(loc, elePtrTy, vecPtr,
                                                       ValueRange{indexVar});
       auto i1PtrTy = cc::PointerType::get(builder.getI1Type());
@@ -2787,7 +2790,7 @@ bool QuakeBridgeVisitor::VisitCXXConstructExpr(clang::CXXConstructExpr *x) {
       auto backTy = backVal.getType();
       if (auto ptrTy = dyn_cast<cc::PointerType>(backTy))
         backTy = ptrTy.getElementType();
-      if (backTy.isa<cc::CallableType>()) {
+      if (isa<cc::CallableType>(backTy)) {
         // Skip this constructor (for now).
         return true;
       }

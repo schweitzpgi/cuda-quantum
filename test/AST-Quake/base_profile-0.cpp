@@ -8,7 +8,7 @@
 
 // REQUIRES: c++20
 // clang-format off
-// RUN: cudaq-quake %s | cudaq-opt --add-dealloc --lower-to-cfg | cudaq-translate --convert-to=qir-base -o - | FileCheck %s
+// RUN: cudaq-quake %s | cudaq-opt --lower-to-cfg | cudaq-translate --convert-to=qir-base -o - | FileCheck %s
 // clang-format on
 
 #include <cudaq.h>
@@ -33,8 +33,14 @@ struct kernel {
 
 // clang-format off
 // CHECK-LABEL: define void @__nvqpp__mlirgen__kernel()
-// CHECK:         tail call void @__quantum__qis__mz__body(%{{.*}}* null, %{{.*}}* null)
-// CHECK:         tail call void @__quantum__qis__mz__body(%{{.*}}* nonnull inttoptr (i64 1 to %{{.*}}*), %{{.*}}* nonnull inttoptr (i64 1 to %{{.*}}*))
-// CHECK:         tail call void @__quantum__rt__result_record_output(%{{.*}}* null, i8* nonnull getelementptr inbounds ([3 x i8], [3 x i8]* @cstr.623000, i64 0, i64 0))
-// CHECK:         tail call void @__quantum__rt__result_record_output(%{{.*}}* nonnull inttoptr (i64 1 to %{{.*}}*), i8* nonnull getelementptr inbounds ([3 x i8], [3 x i8]* @cstr.623100, i64 0, i64 0))
-// clang-format on
+// CHECK-DAG:     %[[VAL_0:.*]] = tail call target("qir#Qubit") @llvm.qir.i64ToQubit(i64 1)
+// CHECK-DAG:     %[[VAL_1:.*]] = tail call target("qir#Qubit") @llvm.qir.i64ToQubit(i64 2)
+// CHECK-DAG:     %[[VAL_2:.*]] = tail call target("qir#Qubit") @llvm.qir.i64ToQubit(i64 0)
+// CHECK-DAG:     %[[VAL_3:.*]] = tail call target("qir#Result") @llvm.qir.i64ToResult(i64 0)
+// CHECK:         tail call void @__quantum__qis__mz__body(target("qir#Qubit") %[[VAL_2]], target("qir#Result") %[[VAL_3]])
+// CHECK:         %[[VAL_4:.*]] = tail call target("qir#Result") @llvm.qir.i64ToResult(i64 1)
+// CHECK:         tail call void @__quantum__qis__mz__body(target("qir#Qubit") %[[VAL_0]], target("qir#Result") %[[VAL_4]])
+// CHECK:         %[[VAL_5:.*]] = tail call target("qir#Result") @llvm.qir.i64ToResult(i64 0)
+// CHECK:         tail call void @__quantum__rt__result_record_output(target("qir#Result") %[[VAL_5]], ptr nonnull @cstr.{{.*}})
+// CHECK:         %[[VAL_6:.*]] = tail call target("qir#Result") @llvm.qir.i64ToResult(i64 1)
+// CHECK:         tail call void @__quantum__rt__result_record_output(target("qir#Result") %[[VAL_6]], ptr nonnull @cstr.{{.*}})
