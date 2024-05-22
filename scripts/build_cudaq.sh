@@ -119,14 +119,14 @@ if [ -x "$(command -v "$LLVM_INSTALL_PREFIX/bin/ld.lld")" ]; then
   NVQPP_LD_PATH="$LLVM_INSTALL_PREFIX/bin/ld.lld"
 fi
 
-# Pass the CUDAQ_GCC_INSTALL_PREFIX, if has a value. The prefix is used to
+# Pass the CUDAQ_GCC_TOOLCHAIN_PREFIX, if has a value. The prefix is used to
 # specify the default location of the C++ headers and libraries that are to be
 # used by nvq++.
-if [[ -n "${CUDAQ_GCC_INSTALL_PREFIX}" ]]; then
-  echo "Using ${CUDAQ_GCC_INSTALL_PREFIX} for C++ standard headers, etc."
-  GCC_INSTALL_PREFIX_OPT="-DCUDAQ_GCC_INSTALL_PREFIX=\"${CUDAQ_GCC_INSTALL_PREFIX}\""
+if [[ -n "${CUDAQ_GCC_TOOLCHAIN_PREFIX}" ]]; then
+  echo "Using ${CUDAQ_GCC_TOOLCHAIN_PREFIX} for C++ standard headers, etc."
+  GCC_TOOLCHAIN_PREFIX_OPT="-DCUDAQ_GCC_TOOLCHAIN_PREFIX=\"${CUDAQ_GCC_TOOLCHAIN_PREFIX}\""
 else
-  GCC_INSTALL_PREFIX_OPT=
+  GCC_TOOLCHAIN_PREFIX_OPT=
 fi
 
 
@@ -142,7 +142,7 @@ cmake_args="-G Ninja "$repo_root" \
   -DCUDAQ_BUILD_TESTS=${CUDAQ_BUILD_TESTS:-TRUE} \
   -DCUDAQ_TEST_MOCK_SERVERS=${CUDAQ_BUILD_TESTS:-TRUE} \
   -DCMAKE_COMPILE_WARNING_AS_ERROR=${CUDAQ_WERROR:-ON} \
-  ${GCC_INSTALL_PREFIX_OPT}"
+  ${GCC_TOOLCHAIN_PREFIX_OPT}"
 # Note that even though we specify CMAKE_CUDA_HOST_COMPILER above, it looks like the 
 # CMAKE_CUDA_COMPILER_WORKS checks do *not* use that host compiler unless the CUDAHOSTCXX 
 # environment variable is specified. Setting this variable may hence be necessary in 

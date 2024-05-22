@@ -214,7 +214,7 @@ if [ ! -f "${install_dir}/include/cudaq.h" ]; then
 	fi
 fi
 
-ECHO=true
+ECHO=false
 TOOLBIN="${install_dir}/bin/"
 LLVMBIN="${llvm_install_dir}/bin/"
 
@@ -267,12 +267,12 @@ OUTPUTFILE=
 OBJS=
 SRCS=
 ARGS=
-HOST_GCC_INSTALL_DIR="@CUDAQ_GCC_INSTALL_PREFIX@"
-if [[ -n "${GCC_INSTALL_PREFIX}" ]]; then
+HOST_GCC_TOOLCHAIN_DIR="@CUDAQ_GCC_TOOLCHAIN_PREFIX@"
+if [[ -n "${GCC_TOOLCHAIN_PREFIX}" ]]; then
 	# The user may override the setting in their environment.
-	HOST_GCC_INSTALL_DIR="${GCC_INSTALL_PREFIX}"
+	HOST_GCC_TOOLCHAIN_DIR="${GCC_TOOLCHAIN_PREFIX}"
 fi
-CUDAQ_QUAKE_ARGS="-Xcudaq -v"
+CUDAQ_QUAKE_ARGS=
 CUDAQ_OPT_ARGS=
 CUDAQ_TRANSLATE_ARGS=
 MAPPING_FILE=
@@ -384,7 +384,7 @@ while [ $# -ne 0 ]; do
 	--gcc-toolchain=*|--gcc-install-dir=*)
 		# clang is deprecating the --gcc-toolchain option
 		CUDAQ_QUAKE_ARGS="${CUDAQ_QUAKE_ARGS} -Xcudaq \"$1\""
-		HOST_GCC_INSTALL_DIR=
+		HOST_GCC_TOOLCHAIN_DIR=
 		;;
 	--execution-manager | -em | -execution-manager)
 		LIBRARY_MODE_EXECUTION_MANAGER="$2"
@@ -665,10 +665,10 @@ if ${CUDAQ_IS_APPLE}; then
 fi
 LLC=${LLVMBIN}llc${llvm_suffix}
 
-if [[ -n "${HOST_GCC_INSTALL_DIR}" ]]; then
+if [[ -n "${HOST_GCC_TOOLCHAIN_DIR}" ]]; then
 	# Use the toolchain specified at build-time, if any, and the user has
 	# not overridden it already.
-	CUDAQ_QUAKE_ARGS="${CUDAQ_QUAKE_ARGS} -Xcudaq --gcc-install-dir=${HOST_GCC_INSTALL_DIR}"
+	CUDAQ_QUAKE_ARGS="${CUDAQ_QUAKE_ARGS} -Xcudaq --gcc-toolchain=${HOST_GCC_TOOLCHAIN_DIR}"
 fi
 if ${LIBRARY_MODE}; then
 	ENABLE_KERNEL_EXECUTION=false

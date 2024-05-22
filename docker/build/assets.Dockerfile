@@ -161,10 +161,7 @@ RUN echo "Patching up wheel using auditwheel..." && \
 FROM cpp_build
 RUN if [ ! -x "$(command -v nvidia-smi)" ] || [ -z "$(nvidia-smi | egrep -o "CUDA Version: ([0-9]{1,}\.)+[0-9]{1,}")" ]; then \
         excludes="--label-exclude gpu_required"; \
-    fi && \
-    rm -rf /opt/rh/gcc-toolset-11/root/usr/lib/gcc/x86_64-redhat-linux/11/32 ; \
-    ls -alR /opt/rh/gcc-toolset-11/root ; \
-    cd /cuda-quantum && \
+    fi && cd /cuda-quantum && \
     # FIXME: Disabled nlopt doesn't seem to work properly
     # tracked in https://github.com/NVIDIA/cuda-quantum/issues/1103
     excludes+=" --exclude-regex NloptTester|ctest-nvqpp|ctest-targettests" && \
