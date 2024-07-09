@@ -10,14 +10,14 @@ set(LIBRARY_NAME cudaq-common)
 
 set(COMMON_EXTRA_DEPS "")
 set(COMMON_RUNTIME_SRC
+  Executor.cpp
+  Future.cpp
   Logger.cpp 
   MeasureCounts.cpp 
   NoiseModel.cpp 
-  ServerHelper.cpp 
   Resources.cpp
+  ServerHelper.cpp 
   Trace.cpp
-  Future.cpp
-  Executor.cpp
 )
 
 # Create the cudaq-common library
