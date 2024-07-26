@@ -288,7 +288,7 @@ public:
 };
 
 /// Convert a ExtractRefOp to the respective QIR.
-class ExtractQubitOpRewrite
+class ExtractRefOpRewrite
     : public ConvertOpToLLVMPattern<quake::ExtractRefOp> {
 public:
   using ConvertOpToLLVMPattern::ConvertOpToLLVMPattern;
@@ -1354,7 +1354,7 @@ void cudaq::opt::populateQuakeToLLVMPatterns(LLVMTypeConverter &typeConverter,
                   ReturnBitRewrite>(context);
   patterns.insert<
       AllocaOpRewrite, ConcatOpRewrite, CustomUnitaryOpRewrite,
-      DeallocOpRewrite, DiscriminateOpPattern, ExtractQubitOpRewrite,
+      DeallocOpRewrite, DiscriminateOpPattern, ExtractRefOpRewrite,
       ExpPauliRewrite, OneTargetRewrite<quake::HOp>,
       OneTargetRewrite<quake::XOp>, OneTargetRewrite<quake::YOp>,
       OneTargetRewrite<quake::ZOp>, OneTargetRewrite<quake::SOp>,

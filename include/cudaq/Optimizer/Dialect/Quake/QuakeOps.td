@@ -636,9 +636,12 @@ def quake_ReturnWireOp : QuakeOp<"return_wire"> {
   }];
 
   let arguments = (ins
-    Arg<WireType, "wire to return", [MemRead, MemWrite]>:$target
+    Arg<WireType, "wire to return", [MemRead, MemWrite]>:$target,
+    OptionalAttr<FlatSymbolRefAttr>:$set_name
   );
-  let assemblyFormat = "$target `:` type(operands) attr-dict";
+  let assemblyFormat = [{
+    $target ( `to` $set_name^ )? `:` type(operands) attr-dict
+  }];
 }
 
 //===----------------------------------------------------------------------===//

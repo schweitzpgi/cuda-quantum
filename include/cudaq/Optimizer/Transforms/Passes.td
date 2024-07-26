@@ -761,4 +761,16 @@ def UpdateRegisterNames : Pass<"update-register-names"> {
   }];
 }
 
+def WireSetToMem : Pass<"wireset-to-mem", "mlir::ModuleOp"> {
+  let summary = "Convert Quake wire sets to memory reference semantics.";
+  let description = [{
+    Convert the IR from value semantics, using wire sets, to a mixed form that
+    uses memory reference semantics and value semantics. This pass should be
+    run before regtomem on the quantum operations when the IR is using wire
+    sets. After this transformation, qubits will be assigned specific offsets
+    (identity) and the live ranges will be determinable and demarcated between
+    unwrap and wrap operations.
+  }];
+}
+
 #endif // CUDAQ_OPT_OPTIMIZER_TRANSFORMS_PASSES

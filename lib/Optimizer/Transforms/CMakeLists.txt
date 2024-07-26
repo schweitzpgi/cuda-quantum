@@ -48,6 +48,7 @@ add_cudaq_library(OptTransforms
   RefToVeqAlloc.cpp
   RegToMem.cpp
   StatePreparation.cpp
+  WireSetToMem.cpp
 
   DEPENDS
     OptTransformsPassIncGen

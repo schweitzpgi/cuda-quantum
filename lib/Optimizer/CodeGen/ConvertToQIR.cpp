@@ -147,14 +147,16 @@ public:
   /// simpler.
   void runOnOperation() override final {
     auto *context = &getContext();
-    if (failed(fuseSubgraphPatterns(context, getOperation()))) {
+    ModuleOp mod = getOperation();
+
+    if (failed(fuseSubgraphPatterns(context, mod))) {
       signalPassFailure();
       return;
     }
     // Ad hoc deal with ConstantArrayOp transformation.
     // TODO: Merge this into the codegen dialect once that gets to main.
     if (failed(eraseConstantArrayOps())) {
-      getOperation().emitOpError("unexpected constant arrays");
+      mod.emitOpError("unexpected constant arrays");
       signalPassFailure();
       return;
     }
@@ -181,13 +183,12 @@ public:
     target.addLegalDialect<LLVM::LLVMDialect>();
     target.addLegalOp<ModuleOp>();
 
-    auto op = getOperation();
-    LLVM_DEBUG(llvm::dbgs() << "Before conversion to QIR:\n"; op.dump());
-    if (failed(applyFullConversion(op, target, std::move(patterns)))) {
-      LLVM_DEBUG(getOperation().dump());
+    LLVM_DEBUG(llvm::dbgs() << "Before conversion to QIR:\n"; mod.dump());
+    if (failed(applyFullConversion(mod, target, std::move(patterns)))) {
+      LLVM_DEBUG(mod.dump());
       signalPassFailure();
     }
-    LLVM_DEBUG(llvm::dbgs() << "After conversion to QIR:\n"; op.dump());
+    LLVM_DEBUG(llvm::dbgs() << "After conversion to QIR:\n"; mod.dump());
   }
 };
 
@@ -209,6 +210,8 @@ class LowerToCG : public cudaq::opt::impl::LowerToCGBase<LowerToCG> {
 public:
   using LowerToCGBase::LowerToCGBase;
 
+  // Runs on the module. Preparation step to convert subgraph patterns to
+  // codegen dialect.
   void runOnOperation() override {
     if (failed(fuseSubgraphPatterns(&getContext(), getOperation())))
       signalPassFailure();
