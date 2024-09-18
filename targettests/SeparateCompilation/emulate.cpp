@@ -14,9 +14,6 @@
 // RUN: %t/emux.a.out | FileCheck %s
 // clang-format on
 
-// Catch-22. We need to use argument synthesis, but if I enable that in the
-// quantum_platform.cpp code, there are a bunch of failures.
-
 //--- emulib.h
 
 #include "cudaq.h"
