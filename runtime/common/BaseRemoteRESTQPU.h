@@ -591,7 +591,11 @@ public:
           "cudaq::observe(), or cudaq::draw().");
 
     // Get the Quake code, lowered according to config file.
-    auto codes = lowerQuakeCode(kernelName, rawArgs);
+    // FIXME: For python, we reach here with rawArgs being empty and args having
+    // the arguments. Python should be using the streamlined argument synthesis,
+    // but apparently it isn't. This works around that bug.
+    auto codes = rawArgs.empty() ? lowerQuakeCode(kernelName, args)
+                                 : lowerQuakeCode(kernelName, rawArgs);
     completeLaunchKernel(kernelName, std::move(codes));
   }
 
