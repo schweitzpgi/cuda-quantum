@@ -6,6 +6,7 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
+// REQUIRES: c++20
 // clang-format off
 // RUN: split-file %s %t && \
 // RUN: nvq++ --enable-mlir -c %t/anonlib.cpp -o %t/anonlib.o && \

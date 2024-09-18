@@ -9,35 +9,27 @@
 // REQUIRES: c++20
 // clang-format off
 // RUN: split-file %s %t && \
-// RUN: nvq++ --enable-mlir -c %t/classlib.cpp -o %t/classlib.o && \
-// RUN: nvq++ --enable-mlir -c %t/classuser.cpp -o %t/classuser.o && \
-// RUN: nvq++ --enable-mlir %t/classlib.o %t/classuser.o -o %t/class.a.out && \
-// RUN: %t/class.a.out | FileCheck %s
+// RUN: nvq++ --enable-mlir -c %t/udedgulib.cpp -o %t/udedgulib.o && \
+// RUN: nvq++ --enable-mlir -c %t/udedguuser.cpp -o %t/udedguuser.o && \
+// RUN: nvq++ --enable-mlir %t/udedgulib.o %t/udedguuser.o -o %t/udedgu.x && \
+// RUN: %t/udedgu.x | FileCheck %s
 // clang-format on
 
-//--- classlib.h
+//--- udedgulib.h
 
 #include "cudaq.h"
 
-struct HereIsTheThing {
-  void operator()(cudaq::qvector<> &q) __qpu__;
-};
+__qpu__ void dunkadee(cudaq::qvector<> &q);
 
-//--- classlib.cpp
+//--- udedgulib.cpp
 
-#include "classlib.h"
-#include <iostream>
+#include "udedgulib.h"
 
-void rollcall() { std::cout << "library function here, sir!\n"; }
+__qpu__ void dunkadee(cudaq::qvector<> &q) { x(q[0]); }
 
-void HereIsTheThing::operator()(cudaq::qvector<> &q) __qpu__ {
-  x(q[0]);
-  rollcall();
-}
+//--- udedguuser.cpp
 
-//--- classuser.cpp
-
-#include "classlib.h"
+#include "udedgulib.h"
 #include <iostream>
 
 __qpu__ void
@@ -47,10 +39,9 @@ userKernel(const cudaq::qkernel_ref<void(cudaq::qvector<> &)> &init) {
 }
 
 int main() {
-  userKernel(HereIsTheThing{});
+  cudaq::sample(10, userKernel, dunkadee);
   std::cout << "Hello, World!\n";
   return 0;
 }
 
-// CHECK: library function here
 // CHECK: Hello, World
