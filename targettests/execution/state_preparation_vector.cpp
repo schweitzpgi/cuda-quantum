@@ -23,9 +23,6 @@
 // RUN: nvq++ %cpp_std -target iqm --iqm-machine Apollo -emulate %s -o %t && \
 // RUN:   %t | FileCheck %s
 
-// Requires init_state to be implemented via new argument synthesis
-// XFAIL: *
-
 #include <cudaq.h>
 #include <iostream>
 
