@@ -16,7 +16,6 @@
 
 // Catch-22. We need to use argument synthesis, but if I enable that in the
 // quantum_platform.cpp code, there are a bunch of failures.
-// XFAIL: *
 
 //--- emulib.h
 
