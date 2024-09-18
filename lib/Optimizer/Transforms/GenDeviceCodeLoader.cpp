@@ -180,8 +180,8 @@ public:
                                    ValueRange{castDevRef, castCodeRef});
 
       auto kernName = funcOp.getSymName().str();
-      if (!jitTime && mangledNameMap &&
-          !mangledNameMap.empty() && mangledNameMap.contains(kernName)) {
+      if (!jitTime && mangledNameMap && !mangledNameMap.empty() &&
+          mangledNameMap.contains(kernName)) {
         auto hostFuncNameAttr = mangledNameMap.getAs<StringAttr>(kernName);
         auto hostFuncName = hostFuncNameAttr.getValue();
         auto hostFuncOp = module.lookupSymbol<func::FuncOp>(hostFuncName);
