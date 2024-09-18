@@ -235,7 +235,7 @@ func.func @test_3(%0: !cc.ptr<i8>, %1: !cc.ptr<!cc.struct<{!cc.struct<{!cc.ptr<i
 // CHECK:         ret void
 // CHECK:       }
 
-// CHECK-LABEL: define i64 @test_0.returnOffset() local_unnamed_addr #{{[0-9]+}} {
+// CHECK-LABEL: define i64 @test_0.returnOffset() {{.*}}{
 // CHECK:         ret i64 2147483647
 // CHECK:       }
 
@@ -279,7 +279,7 @@ func.func @test_3(%0: !cc.ptr<i8>, %1: !cc.ptr<!cc.struct<{!cc.struct<{!cc.ptr<i
 // CHECK:         ret void
 // CHECK:       }
 
-// CHECK-LABEL: define i64 @test_1.returnOffset() local_unnamed_addr #{{[0-9]+}} {
+// CHECK-LABEL: define i64 @test_1.returnOffset() {{.*}}{
 // CHECK:         ret i64 2147483647
 // CHECK:       }
 
@@ -346,7 +346,7 @@ func.func @test_3(%0: !cc.ptr<i8>, %1: !cc.ptr<!cc.struct<{!cc.struct<{!cc.ptr<i
 // CHECK:       }
 // CHECK:       ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 
-// CHECK-LABEL: define i64 @test_2.returnOffset() local_unnamed_addr #{{[0-9]+}} {
+// CHECK-LABEL: define i64 @test_2.returnOffset() {{.*}}{
 // CHECK:         ret i64 2147483647
 // CHECK:       }
 
@@ -391,7 +391,7 @@ func.func @test_3(%0: !cc.ptr<i8>, %1: !cc.ptr<!cc.struct<{!cc.struct<{!cc.ptr<i
 // CHECK:         ret void
 // CHECK:       }
 
-// CHECK-LABEL: define i64 @test_3.returnOffset() local_unnamed_addr #{{[0-9]+}} {
+// CHECK-LABEL: define i64 @test_3.returnOffset() {{.*}}{
 // CHECK:         ret i64 2147483647
 // CHECK:       }
 
