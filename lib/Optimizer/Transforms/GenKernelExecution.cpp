@@ -538,80 +538,6 @@ public:
     return argsCreatorFunc;
   }
 
-  /// If the kernel has an sret argument, then we rewrite the kernel's signature
-  /// on the target. Note that this requires that the target has the ability to
-  /// pass stack pointers as function arguments. These stack pointers will
-  /// obviously only necessarily be valid to the target executing the kernel.
-  void updateQPUKernelAsSRet(OpBuilder &builder, func::FuncOp funcOp,
-                             FunctionType newFuncTy) {
-    auto funcTy = funcOp.getFunctionType();
-    // We add exactly 1 sret argument regardless of how many fields are folded
-    // into it.
-    assert(newFuncTy.getNumInputs() == funcTy.getNumInputs() + 1 &&
-           "sret should be a single argument");
-    auto *ctx = funcOp.getContext();
-    auto eleTy = cudaq::opt::factory::getSRetElementType(funcTy);
-    NamedAttrList attrs;
-    attrs.set(LLVM::LLVMDialect::getStructRetAttrName(), TypeAttr::get(eleTy));
-    funcOp.insertArgument(0, newFuncTy.getInput(0), attrs.getDictionary(ctx),
-                          funcOp.getLoc());
-    auto elePtrTy = cudaq::cc::PointerType::get(eleTy);
-    OpBuilder::InsertionGuard guard(builder);
-    SmallVector<Operation *> returnsToErase;
-    // Update all func.return to store values to the sret block.
-    funcOp->walk([&](func::ReturnOp retOp) {
-      auto loc = retOp.getLoc();
-      builder.setInsertionPoint(retOp);
-      auto cast = builder.create<cudaq::cc::CastOp>(loc, elePtrTy,
-                                                    funcOp.getArgument(0));
-      if (funcOp.getNumResults() > 1) {
-        for (int i = 0, end = funcOp.getNumResults(); i != end; ++i) {
-          auto mem = builder.create<cudaq::cc::ComputePtrOp>(
-              loc, cudaq::cc::PointerType::get(funcTy.getResult(i)), cast,
-              SmallVector<cudaq::cc::ComputePtrArg>{i});
-          builder.create<cudaq::cc::StoreOp>(loc, retOp.getOperands()[i], mem);
-        }
-      } else if (auto stdvecTy =
-                     dyn_cast<cudaq::cc::SpanLikeType>(funcTy.getResult(0))) {
-        auto stdvec = retOp.getOperands()[0];
-        auto eleTy = [&]() -> Type {
-          // TODO: Fold this conversion into the StdvecDataOp builder. We will
-          // never get a data buffer which is not byte addressable and where
-          // the width is less than 8.
-          if (auto intTy = dyn_cast<IntegerType>(stdvecTy.getElementType()))
-            if (intTy.getWidth() < 8)
-              return builder.getI8Type();
-          return stdvecTy.getElementType();
-        }();
-        auto i8Ty = cudaq::cc::PointerType::get(builder.getI8Type());
-        auto ptrTy = cudaq::cc::PointerType::get(eleTy);
-        auto data = builder.create<cudaq::cc::StdvecDataOp>(loc, ptrTy, stdvec);
-        auto mem0 = builder.create<cudaq::cc::ComputePtrOp>(
-            loc, cudaq::cc::PointerType::get(i8Ty), cast,
-            SmallVector<cudaq::cc::ComputePtrArg>{0});
-        auto mem1 = builder.create<cudaq::cc::CastOp>(
-            loc, cudaq::cc::PointerType::get(ptrTy), mem0);
-        builder.create<cudaq::cc::StoreOp>(loc, data, mem1);
-        auto i64Ty = builder.getI64Type();
-        auto size = builder.create<cudaq::cc::StdvecSizeOp>(loc, i64Ty, stdvec);
-        auto mem2 = builder.create<cudaq::cc::ComputePtrOp>(
-            loc, cudaq::cc::PointerType::get(i64Ty), cast,
-            SmallVector<cudaq::cc::ComputePtrArg>{1});
-        builder.create<cudaq::cc::StoreOp>(loc, size, mem2);
-      } else {
-        builder.create<cudaq::cc::StoreOp>(loc, retOp.getOperands()[0], cast);
-      }
-      builder.create<func::ReturnOp>(loc);
-      returnsToErase.push_back(retOp);
-    });
-    for (auto *op : returnsToErase)
-      op->erase();
-    for (std::size_t i = 0, end = funcOp.getNumResults(); i != end; ++i)
-      funcOp.eraseResult(0);
-    modifiedDevKernels.insert(
-        std::pair<StringRef, Type>{funcOp.getName(), newFuncTy.getInput(0)});
-  }
-
   /// In the thunk, we need to unpack any `std::vector` objects encoded in the
   /// packet. Since these have dynamic size, they are encoded as trailing bytes
   /// by offset and size. The offset is implicit from the values of the
@@ -821,58 +747,23 @@ public:
     // Unpack the arguments in the struct and build the argument list for
     // the call to the kernel code.
     SmallVector<Value> args;
-    const bool hiddenSRet = cudaq::opt::factory::hasHiddenSRet(funcTy);
-    FunctionType newFuncTy = [&]() {
-      if (hiddenSRet) {
-        auto sretPtrTy = cudaq::cc::PointerType::get(
-            cudaq::opt::factory::getSRetElementType(funcTy));
-        SmallVector<Type> inputTys = {sretPtrTy};
-        inputTys.append(funcTy.getInputs().begin(), funcTy.getInputs().end());
-        return FunctionType::get(ctx, inputTys, {});
-      }
-      return funcTy;
-    }();
-    int offset = funcTy.getNumInputs();
-    if (hiddenSRet) {
-      // Use the end of the argument block for the return values.
-      auto eleTy = structTy.getMember(offset);
-      auto mem = builder.create<cudaq::cc::ComputePtrOp>(
-          loc, cudaq::cc::PointerType::get(eleTy), castOp,
-          SmallVector<cudaq::cc::ComputePtrArg>{offset});
-      auto sretPtrTy = cudaq::cc::PointerType::get(
-          cudaq::opt::factory::getSRetElementType(funcTy));
-      auto sretMem = builder.create<cudaq::cc::CastOp>(loc, sretPtrTy, mem);
-      args.push_back(sretMem);
-
-      // Rewrite the original kernel's signature and return op(s).
-      updateQPUKernelAsSRet(builder, funcOp, newFuncTy);
-    }
+    const std::int32_t offset = funcTy.getNumInputs();
     for (auto inp : llvm::enumerate(funcTy.getInputs())) {
       auto [a, t] = processInputValue(loc, builder, trailingData, val,
                                       inp.value(), inp.index(), structTy);
       trailingData = t;
       args.push_back(a);
     }
-    auto call = builder.create<func::CallOp>(loc, newFuncTy.getResults(),
+    auto call = builder.create<func::CallOp>(loc, funcTy.getResults(),
                                              funcOp.getName(), args);
-    // If and only if the kernel returns non-sret results, then take those
-    // values and store them in the results section of the struct. They will
-    // eventually be returned to the original caller.
-    if (!hiddenSRet && funcTy.getNumResults() == 1) {
-      auto eleTy = structTy.getMember(offset);
-      auto mem = builder.create<cudaq::cc::ComputePtrOp>(
-          loc, cudaq::cc::PointerType::get(eleTy), castOp,
-          SmallVector<cudaq::cc::ComputePtrArg>{offset});
-      builder.create<cudaq::cc::StoreOp>(loc, call.getResult(0), mem);
-    }
-
-    // If the original result was a std::vector<T>, then depending on whether
-    // this is client-server or not, the thunk function packs the dynamic return
-    // data into a message buffer or just returns a pointer to the shared heap
-    // allocation, resp.
-    bool hasVectorResult = funcTy.getNumResults() == 1 &&
-                           isa<cudaq::cc::SpanLikeType>(funcTy.getResult(0));
+    const bool hasVectorResult =
+        funcTy.getNumResults() == 1 &&
+        isa<cudaq::cc::SpanLikeType>(funcTy.getResult(0));
     if (hasVectorResult) {
+      // If the original result was a std::vector<T>, then depending on whether
+      // this is client-server or not, the thunk function packs the dynamic
+      // return data into a message buffer or just returns a pointer to the
+      // shared heap allocation, resp.
       auto *currentBlock = builder.getBlock();
       auto *reg = currentBlock->getParent();
       auto *thenBlock = builder.createBlock(reg);
@@ -881,23 +772,40 @@ public:
       builder.create<cf::CondBranchOp>(loc, isClientServer, thenBlock,
                                        elseBlock);
       builder.setInsertionPointToEnd(thenBlock);
-      int offset = funcTy.getNumInputs();
       auto gepRes = builder.create<cudaq::cc::ComputePtrOp>(
           loc, cudaq::cc::PointerType::get(structTy.getMember(offset)), castOp,
-          SmallVector<cudaq::cc::ComputePtrArg>{offset});
-      auto gepRes2 = builder.create<cudaq::cc::CastOp>(
+          ArrayRef<cudaq::cc::ComputePtrArg>{offset});
+      auto resAsVec = builder.create<cudaq::cc::CastOp>(
+          loc, cudaq::cc::PointerType::get(funcTy.getResult(0)), gepRes);
+      builder.create<cudaq::cc::StoreOp>(loc, call.getResult(0), resAsVec);
+      auto resAsArg = builder.create<cudaq::cc::CastOp>(
           loc, cudaq::cc::PointerType::get(thunkTy.getResults()[0]), gepRes);
       // createDynamicResult packs the input values and the dynamic results
       // into a single buffer to pass back as a message.
       auto res = builder.create<func::CallOp>(
           loc, thunkTy.getResults()[0], "__nvqpp_createDynamicResult",
-          ValueRange{thunkEntry->getArgument(0), structSize, gepRes2});
+          ValueRange{thunkEntry->getArgument(0), structSize, resAsArg});
       builder.create<func::ReturnOp>(loc, res.getResult(0));
       builder.setInsertionPointToEnd(elseBlock);
+    } else {
+      // FIXME: Should check for recursive vector case.
+      // If the kernel returns non-dynamic results (no spans), then take those
+      // values and store them in the results section of the struct. They will
+      // eventually be returned to the original caller.
+      if (funcTy.getNumResults()) {
+        for (std::int32_t o = 0;
+             o < static_cast<std::int32_t>(funcTy.getNumResults()); ++o) {
+          auto eleTy = structTy.getMember(offset + o);
+          auto mem = builder.create<cudaq::cc::ComputePtrOp>(
+              loc, cudaq::cc::PointerType::get(eleTy), castOp,
+              SmallVector<cudaq::cc::ComputePtrArg>{offset + o});
+          builder.create<cudaq::cc::StoreOp>(loc, call.getResult(o), mem);
+        }
+      }
     }
     // zeroDynamicResult is used by models other than client-server. It assumes
-    // that no messages need to be sent, the CPU and QPU code share a memory
-    // space, and therefore skips making any copies.
+    // that no messages need to be sent and that the CPU and QPU code share a
+    // memory space. Therefore, making any copies can be skipped.
     auto zeroRes =
         builder.create<func::CallOp>(loc, thunkTy.getResults()[0],
                                      "__nvqpp_zeroDynamicResult", ValueRange{});
@@ -1779,45 +1687,11 @@ public:
       cudaq::opt::factory::createGlobalCtorCall(
           module, FlatSymbolRefAttr::get(ctx, initFun.getName()));
 
-      SmallVector<Operation *> deadCalls;
-      module.walk([&](func::CallOp call) {
-        if (!call.getResults().empty()) {
-          auto callee = call.getCallee();
-          auto iter = modifiedDevKernels.find(callee);
-          if (iter != modifiedDevKernels.end()) {
-            OpBuilder builder(call);
-            Type ty = call.getResult(0).getType();
-            auto loc = call.getLoc();
-            auto strTy = cast<cudaq::cc::StructType>(
-                cast<cudaq::cc::PointerType>(iter->second).getElementType());
-            auto buff = builder.create<cudaq::cc::AllocaOp>(loc, strTy);
-            SmallVector<Value> args = {buff};
-            args.append(call.getOperands().begin(), call.getOperands().end());
-            builder.create<func::CallOp>(loc, TypeRange{}, callee, args);
-            auto buffPtrPtr = builder.create<cudaq::cc::ComputePtrOp>(
-                loc, cudaq::cc::PointerType::get(strTy.getMember(0)), buff,
-                ArrayRef<cudaq::cc::ComputePtrArg>{0});
-            auto buffPtr = builder.create<cudaq::cc::LoadOp>(loc, buffPtrPtr);
-            auto buffSizePtr = builder.create<cudaq::cc::ComputePtrOp>(
-                loc, cudaq::cc::PointerType::get(strTy.getMember(1)), buff,
-                ArrayRef<cudaq::cc::ComputePtrArg>{1});
-            auto buffSize = builder.create<cudaq::cc::LoadOp>(loc, buffSizePtr);
-            auto sv = builder.create<cudaq::cc::StdvecInitOp>(loc, ty, buffPtr,
-                                                              buffSize);
-            call.getResult(0).replaceAllUsesWith(sv);
-            deadCalls.push_back(call);
-          }
-        }
-      });
-      for (auto *op : deadCalls)
-        op->erase();
-
       LLVM_DEBUG(llvm::dbgs() << "final module:\n" << module << '\n');
     }
     out.keep();
   }
 
   const DataLayout *dataLayout = nullptr;
-  DenseMap<StringRef, Type> modifiedDevKernels;
 };
 } // namespace
