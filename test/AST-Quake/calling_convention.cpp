@@ -10,11 +10,15 @@
 // RUN: cudaq-quake %cpp_std %s | cudaq-opt | FileCheck %s
 
 #include <cudaq.h>
-#include <utility>
+#include <tuple>
+#include <vector>
 
 // Tests the host-side signatures of various spec supported kernel arguments and
 // results. This file tests the x86_64 calling convention. Other architectures
 // differ in their calling conventions.
+
+//===----------------------------------------------------------------------===//
+// test all the basic arithmetic types to deny any regressions.
 
 struct T0 {
   void operator()() __qpu__ {}
@@ -119,6 +123,8 @@ struct R8 {
 
 //===----------------------------------------------------------------------===//
 // structs that are less than 128 bits.
+// arguments may be merged into 1 register or passed in pair of registers.
+// results are returned in registers.
 
 struct G0 {
   std::pair<bool, bool> operator()(std::pair<double, double>) __qpu__ {
@@ -165,6 +171,17 @@ struct G5 {
   std::pair<long, float> operator()(II) __qpu__ { return {}; }
 };
 
+struct CC {
+  char _1;
+  unsigned char _2;
+  signed char _3;
+};
+
+struct G6 {
+  std::pair<long, long> operator()(CC) __qpu__ { return {}; }
+};
+
+// clang-format off
 // CHECK-LABEL:  func.func @_ZN2G0clESt4pairIddE(
 // CHECK-SAME:     %[[VAL_0:.*]]: !cc.ptr<i8>, %[[VAL_1:.*]]: f64,
 // CHECK-SAME:     %[[VAL_2:.*]]: f64) -> i16
@@ -179,7 +196,110 @@ struct G5 {
 // CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>, %[[VAL_2:.*]]: f64,
 // CHECK-SAME:     %[[VAL_3:.*]]: i64) -> i32
 // CHECK-LABEL:  func.func @_ZN2G4clE2BB(
-// CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>, %[[VAL_2:.*]]: i32) -> i64
+// CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>, %[[VAL_2:.*]]: i24) -> i64
 // CHECK-LABEL:  func.func @_ZN2G5clE2II(
 // CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>, %[[VAL_2:.*]]: i64,
 // CHECK-SAME:     %[[VAL_3:.*]]: i64) -> !cc.struct<{i64, f64}>
+// CHECK-LABEL:  func.func @_ZN2G6clE2CC(
+// CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>, %[[VAL_2:.*]]: i24) -> !cc.struct<{i64, i64}>
+// clang-format on
+
+//===----------------------------------------------------------------------===//
+// std::vector - these get converted to sret and byval ptrs on host side.
+
+std::vector<int> make_believe();
+
+struct V0 {
+  std::vector<int> operator()() __qpu__ { return make_believe(); }
+};
+
+std::vector<bool> make_coffee();
+
+struct V1 {
+  std::vector<bool> operator()(std::vector<double>) __qpu__ {
+    return make_coffee();
+  }
+};
+
+std::vector<std::pair<char, int>> make_crazy();
+
+struct V2 {
+  std::vector<std::pair<char, int>> operator()(std::vector<float>,
+                                               std::vector<short>) __qpu__ {
+    return make_crazy();
+  }
+};
+
+struct V3 {
+  void operator()(std::vector<long>, std::vector<bool>) __qpu__ {}
+};
+
+// clang-format off
+// CHECK-LABEL:  func.func @_ZN2V0clEv(
+// CHECK-SAME:     %[[VAL_0:.*]]: !cc.ptr<!cc.struct<{!cc.ptr<i32>, !cc.ptr<i32>, !cc.ptr<i32>}>> {llvm.sret = !cc.struct<{!cc.ptr<i32>, !cc.ptr<i32>, !cc.ptr<i32>}>},
+// CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>)
+// CHECK-LABEL:  func.func @_ZN2V1clESt6vectorIdSaIdEE(
+// CHECK-SAME:     %[[VAL_0:.*]]: !cc.ptr<!cc.struct<{!cc.ptr<i1>, !cc.ptr<i1>, !cc.ptr<i1>}>> {llvm.sret = !cc.struct<{!cc.ptr<i1>, !cc.ptr<i1>, !cc.ptr<i1>}>},
+// CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>,
+// CHECK-SAME:     %[[VAL_2:.*]]: !cc.ptr<!cc.struct<{!cc.ptr<f64>, !cc.ptr<f64>, !cc.ptr<f64>}>>)
+// CHECK-LABEL:  func.func @_ZN2V2clESt6vectorIfSaIfEES0_IsSaIsEE(
+// CHECK-SAME:     %[[VAL_0:.*]]: !cc.ptr<!cc.struct<{!cc.ptr<!cc.struct<{i8, i32}>>, !cc.ptr<!cc.struct<{i8, i32}>>, !cc.ptr<!cc.struct<{i8, i32}>>}>> {llvm.sret = !cc.struct<{!cc.ptr<!cc.struct<{i8, i32}>>, !cc.ptr<!cc.struct<{i8, i32}>>, !cc.ptr<!cc.struct<{i8, i32}>>}>},
+// CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>,
+// CHECK-SAME:     %[[VAL_2:.*]]: !cc.ptr<!cc.struct<{!cc.ptr<f32>, !cc.ptr<f32>, !cc.ptr<f32>}>>,
+// CHECK-SAME:     %[[VAL_3:.*]]: !cc.ptr<!cc.struct<{!cc.ptr<i16>, !cc.ptr<i16>, !cc.ptr<i16>}>>)
+// CHECK-LABEL:  func.func @_ZN2V3clESt6vectorIlSaIlEES0_IbSaIbEE(
+// CHECK-SAME: %[[VAL_0:.*]]: !cc.ptr<i8>,
+// CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<!cc.struct<{!cc.ptr<i64>, !cc.ptr<i64>, !cc.ptr<i64>}>>,
+// CHECK-SAME:     %[[VAL_2:.*]]: !cc.ptr<!cc.struct<{!cc.ptr<i1>, !cc.ptr<i1>, !cc.ptr<i1>}>>)
+// clang-format on
+
+//===----------------------------------------------------------------------===//
+// structs that are more than 128 bits. These get converted to sret or byval
+// ptrs on the host side.
+
+struct B0 {
+  void operator()(std::tuple<double, int, char, float, short>) __qpu__ {}
+};
+
+struct BG {
+  float _1[4];
+  int _2[5];
+};
+
+BG make_sausage();
+
+struct B1 {
+  BG operator()() __qpu__ { return make_sausage(); }
+};
+
+std::tuple<int, char, float, short, double, double> make_interesting();
+
+struct B2 {
+  std::tuple<int, char, float, short, double, double> operator()(BG) __qpu__ {
+    return make_interesting();
+  }
+};
+
+struct BA {
+  bool _1[64];
+};
+
+struct B3 {
+  BA operator()(BA arg) __qpu__ { return arg; }
+};
+
+// clang-format off
+// CHECK-LABEL:  func.func @_ZN2B0clESt5tupleIJdicfsEE(
+// CHECK-SAME:     %[[VAL_0:.*]]: !cc.ptr<i8>, %[[VAL_1:.*]]: !cc.ptr<!cc.struct<{i16, f32, i8, i32, f64}>>) {
+// CHECK-LABEL:  func.func @_ZN2B1clEv(
+// CHECK-SAME:     %[[VAL_0:.*]]: !cc.ptr<!cc.struct<"BG" {!cc.array<f32 x 4>, !cc.array<i32 x 5>} [288,4]>> {llvm.sret = !cc.struct<"BG" {!cc.array<f32 x 4>, !cc.array<i32 x 5>} [288,4]>},
+// CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>)
+// CHECK-LABEL:  func.func @_ZN2B2clE2BG(
+// CHECK-SAME:     %[[VAL_0:.*]]: !cc.ptr<!cc.struct<{f64, f64, i16, f32, i8, i32}>> {llvm.sret = !cc.struct<{f64, f64, i16, f32, i8, i32}>},
+// CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>,
+// CHECK-SAME:     %[[VAL_2:.*]]: !cc.ptr<!cc.struct<"BG" {!cc.array<f32 x 4>, !cc.array<i32 x 5>} [288,4]>> {llvm.byval = !cc.struct<"BG" {!cc.array<f32 x 4>, !cc.array<i32 x 5>} [288,4]>})
+// CHECK-LABEL:  func.func @_ZN2B3clE2BA(
+// CHECK-SAME:     %[[VAL_0:.*]]: !cc.ptr<!cc.struct<"BA" {!cc.array<i1 x 64>} [512,1]>> {llvm.sret = !cc.struct<"BA" {!cc.array<i1 x 64>} [512,1]>},
+// CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>,
+// CHECK-SAME:     %[[VAL_2:.*]]: !cc.ptr<!cc.struct<"BA" {!cc.array<i1 x 64>} [512,1]>> {llvm.byval = !cc.struct<"BA" {!cc.array<i1 x 64>} [512,1]>})
+// clang-format on
