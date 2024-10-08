@@ -157,6 +157,8 @@ struct BB {
   bool _3;
 };
 
+BB glue0();
+
 struct G4 {
   std::pair<int, int> operator()(BB) __qpu__ { return {}; }
 };
@@ -166,6 +168,8 @@ struct II {
   int _2;
   int _3;
 };
+
+II glue1();
 
 struct G5 {
   std::pair<long, float> operator()(II) __qpu__ { return {}; }
@@ -177,8 +181,22 @@ struct CC {
   signed char _3;
 };
 
+CC glue2();
+
 struct G6 {
   std::pair<long, long> operator()(CC) __qpu__ { return {}; }
+};
+
+struct G7 {
+  BB operator()(BB, II, CC) __qpu__ { return glue0(); }
+};
+
+struct G8 {
+  II operator()(II, CC, BB) __qpu__ { return glue1(); }
+};
+
+struct G9 {
+  CC operator()(CC, BB, II) __qpu__ { return glue2(); }
 };
 
 // clang-format off
@@ -202,6 +220,18 @@ struct G6 {
 // CHECK-SAME:     %[[VAL_3:.*]]: i64) -> !cc.struct<{i64, f64}>
 // CHECK-LABEL:  func.func @_ZN2G6clE2CC(
 // CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>, %[[VAL_2:.*]]: i24) -> !cc.struct<{i64, i64}>
+// CHECK-LABEL:  func.func @_ZN2G7clE2BB2II2CC(
+// CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>, %[[VAL_2:.*]]: i24,
+// CHECK-SAME:     %[[VAL_3:.*]]: i64, %[[VAL_4:.*]]: i32,
+// CHECK-SAME:     %[[VAL_5:.*]]: i24) -> i24
+// CHECK-LABEL:  func.func @_ZN2G8clE2II2CC2BB(
+// CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>, %[[VAL_2:.*]]: i64,
+// CHECK-SAME:     %[[VAL_3:.*]]: i32, %[[VAL_4:.*]]: i24,
+// CHECK-SAME:     %[[VAL_5:.*]]: i24) -> !cc.struct<{i64, i32}>
+// CHECK-LABEL:  func.func @_ZN2G9clE2CC2BB2II(
+// CHECK-SAME:     %[[VAL_0:.*]]: !cc.ptr<i8>,
+// CHECK-SAME:     %[[VAL_1:.*]]: i24, %[[VAL_2:.*]]: i24,
+// CHECK-SAME:     %[[VAL_3:.*]]: i64, %[[VAL_4:.*]]: i32) -> i24
 // clang-format on
 
 //===----------------------------------------------------------------------===//

@@ -251,7 +251,8 @@ bool isX86_64(mlir::ModuleOp);
 bool isAArch64(mlir::ModuleOp);
 
 /// A small structure may be passed as two arguments on the host side. (e.g., on
-/// the X86-64 ABI.) If \p ty is not a `struct`, this returns `false`.
+/// the X86-64 ABI.) If \p ty is not a `struct`, this returns `false`. Note
+/// also, some small structs may be packed into a single register.
 bool structUsesTwoArguments(mlir::Type ty);
 
 std::optional<std::int64_t> getIntIfConstant(mlir::Value value);

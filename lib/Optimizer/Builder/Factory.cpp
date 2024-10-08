@@ -405,20 +405,30 @@ static Type convertToHostSideType(Type ty) {
 // function tries to simulate GCC argument passing conventions. classify() also
 // has a number of FIXME comments, where it diverges from the referenced ABI.
 // Empirical evidence show that on x86_64, integers and floats are packed in
-// integers of size 32 or 64 together, unless the float member fits by itself.
+// integers of size 8, 16, 24, 32 or 64 together, unless the float member fits
+// by itself.
 static bool shouldExpand(SmallVectorImpl<Type> &packedTys,
                          cc::StructType structTy) {
   if (structTy.isEmpty())
     return false;
   auto *ctx = structTy.getContext();
   unsigned bits = 0;
+  auto scaleBits = [&](unsigned size) {
+    if (size < 32)
+      size = (size + 7) / 8;
+    if (size > 32 && size <= 64)
+      size = 64;
+    return size;
+  };
 
   // First split the members into a "lo" set and a "hi" set.
   SmallVector<Type> set1;
   SmallVector<Type> set2;
   for (auto ty : structTy.getMembers()) {
+    if (bits > 128)
+      return false;
     if (auto intTy = dyn_cast<IntegerType>(ty)) {
-      bits += intTy.getWidth();
+      bits += scaleBits(intTy.getWidth());
       if (bits <= 64)
         set1.push_back(ty);
       else
@@ -443,12 +453,23 @@ static bool shouldExpand(SmallVectorImpl<Type> &packedTys,
         return true;
     return false;
   };
+  auto intSetSize = [&](auto theSet) {
+    unsigned size = 0;
+    for (auto ty : theSet)
+      size += scaleBits(ty.getIntOrFloatBitWidth());
+    return size;
+  };
   auto processMembers = [&](auto theSet, unsigned packIdx) {
     if (useInt(theSet)) {
-      packedTys[packIdx] = IntegerType::get(ctx, bits > 32 ? 64 : 32);
+      auto size = intSetSize(theSet);
+      if (size <= 32)
+        packedTys[packIdx] = IntegerType::get(ctx, size);
+      else
+        packedTys[packIdx] = IntegerType::get(ctx, 64);
     } else if (theSet.size() == 1) {
       packedTys[packIdx] = theSet[0];
     } else {
+      assert(theSet[0] == FloatType::getF32(ctx) && "must be float");
       packedTys[packIdx] =
           VectorType::get(ArrayRef<std::int64_t>{2}, theSet[0]);
     }
@@ -456,8 +477,9 @@ static bool shouldExpand(SmallVectorImpl<Type> &packedTys,
   assert(!set1.empty() && "struct must have members");
   packedTys.resize(set2.empty() ? 1 : 2);
   processMembers(set1, 0);
-  if (!set2.empty())
-    processMembers(set2, 1);
+  if (set2.empty())
+    return false;
+  processMembers(set2, 1);
   return true;
 }
 
@@ -488,7 +510,19 @@ FunctionType factory::toHostSideFuncType(FunctionType funcTy, bool addThisPtr,
   auto *ctx = funcTy.getContext();
   SmallVector<Type> inputTys;
   bool hasSRet = false;
-  if (factory::hasHiddenSRet(funcTy)) {
+  Type resultTy;
+  if (funcTy.getNumResults() == 1)
+    if (auto strTy = dyn_cast<cc::StructType>(funcTy.getResult(0)))
+      if (strTy.getBitSize() != 0 && strTy.getBitSize() <= 128) {
+        SmallVector<Type, 2> packedTys;
+        if (shouldExpand(packedTys, strTy) || !packedTys.empty()) {
+          if (packedTys.size() == 1)
+            resultTy = packedTys[0];
+          else
+            resultTy = cc::StructType::get(ctx, packedTys);
+        }
+      }
+  if (!resultTy && factory::hasHiddenSRet(funcTy)) {
     // When the kernel is returning a std::vector<T> result, the result is
     // returned via a sret argument in the first position. When this argument
     // is added, the this pointer becomes the second argument. Both are opaque
@@ -515,6 +549,10 @@ FunctionType factory::toHostSideFuncType(FunctionType funcTy, bool addThisPtr,
         if (isX86_64(module)) {
           SmallVector<Type, 2> packedTys;
           if (shouldExpand(packedTys, strTy)) {
+            for (auto ty : packedTys)
+              inputTys.push_back(ty);
+            continue;
+          } else if (!packedTys.empty()) {
             for (auto ty : packedTys)
               inputTys.push_back(ty);
             continue;
@@ -545,7 +583,7 @@ FunctionType factory::toHostSideFuncType(FunctionType funcTy, bool addThisPtr,
   if (funcTy.getNumResults() == 0 || hasSRet)
     return FunctionType::get(ctx, inputTys, {});
   assert(funcTy.getNumResults() == 1);
-  return FunctionType::get(ctx, inputTys, funcTy.getResults());
+  return FunctionType::get(ctx, inputTys, resultTy);
 }
 
 bool factory::isStdVecArg(Type type) {
