@@ -207,17 +207,16 @@ struct G9 {
 // CHECK-SAME:     %[[VAL_0:.*]]: !cc.ptr<i8>, %[[VAL_1:.*]]: vector<2xf32>)
 // CHECK-SAME:     -> i16
 // CHECK-LABEL:  func.func @_ZN2G2clESt4pairIllES0_IidE(
-// CHECK-SAME:     %[[VAL_0:.*]]: !cc.ptr<i8>, %[[VAL_1:.*]]: i64,
-// CHECK-SAME:     %[[VAL_2:.*]]: i64, %[[VAL_3:.*]]: i64, %[[VAL_4:.*]]: f64)
-// CHECK-SAME:     -> i32
+// CHECK-SAME:     %[[VAL_0:.*]]: !cc.ptr<i8>,
+// CHECK-SAME:     %[[VAL_1:.*]]: i64, %[[VAL_2:.*]]: i64, %[[VAL_3:.*]]: i32,
+// CHECK-SAME:     %[[VAL_4:.*]]: f64) -> i24
 // CHECK-LABEL:  func.func @_ZN2G3clESt4pairIdbE(
 // CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>, %[[VAL_2:.*]]: f64,
-// CHECK-SAME:     %[[VAL_3:.*]]: i64) -> i32
+// CHECK-SAME:     %[[VAL_3:.*]]: i8) -> i32
 // CHECK-LABEL:  func.func @_ZN2G4clE2BB(
 // CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>, %[[VAL_2:.*]]: i24) -> i64
 // CHECK-LABEL:  func.func @_ZN2G5clE2II(
-// CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>, %[[VAL_2:.*]]: i64,
-// CHECK-SAME:     %[[VAL_3:.*]]: i64) -> !cc.struct<{i64, f64}>
+// CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>, %[[VAL_2:.*]]: i64, %[[VAL_3:.*]]: i32) -> !cc.struct<{i64, f32}>
 // CHECK-LABEL:  func.func @_ZN2G6clE2CC(
 // CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>, %[[VAL_2:.*]]: i24) -> !cc.struct<{i64, i64}>
 // CHECK-LABEL:  func.func @_ZN2G7clE2BB2II2CC(
@@ -273,7 +272,7 @@ struct V3 {
 // CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>,
 // CHECK-SAME:     %[[VAL_2:.*]]: !cc.ptr<!cc.struct<{!cc.ptr<f64>, !cc.ptr<f64>, !cc.ptr<f64>}>>)
 // CHECK-LABEL:  func.func @_ZN2V2clESt6vectorIfSaIfEES0_IsSaIsEE(
-// CHECK-SAME:     %[[VAL_0:.*]]: !cc.ptr<!cc.struct<{!cc.ptr<!cc.struct<{i8, i32}>>, !cc.ptr<!cc.struct<{i8, i32}>>, !cc.ptr<!cc.struct<{i8, i32}>>}>> {llvm.sret = !cc.struct<{!cc.ptr<!cc.struct<{i8, i32}>>, !cc.ptr<!cc.struct<{i8, i32}>>, !cc.ptr<!cc.struct<{i8, i32}>>}>},
+// CHECK-SAME:     %[[VAL_0:.*]]: !cc.ptr<!cc.struct<{!cc.ptr<!cc.struct<{i8, i32} [64,4]>>, !cc.ptr<!cc.struct<{i8, i32} [64,4]>>, !cc.ptr<!cc.struct<{i8, i32} [64,4]>>}>> {llvm.sret = !cc.struct<{!cc.ptr<!cc.struct<{i8, i32} [64,4]>>, !cc.ptr<!cc.struct<{i8, i32} [64,4]>>, !cc.ptr<!cc.struct<{i8, i32} [64,4]>>}>},
 // CHECK-SAME:     %[[VAL_1:.*]]: !cc.ptr<i8>,
 // CHECK-SAME:     %[[VAL_2:.*]]: !cc.ptr<!cc.struct<{!cc.ptr<f32>, !cc.ptr<f32>, !cc.ptr<f32>}>>,
 // CHECK-SAME:     %[[VAL_3:.*]]: !cc.ptr<!cc.struct<{!cc.ptr<i16>, !cc.ptr<i16>, !cc.ptr<i16>}>>)
