@@ -297,9 +297,8 @@ func.func @__nvqpp__mlirgen__test_4() -> (i64, f64) {
   return %c1, %c2 : i64, f64
 }
 
-func.func @test_4(%this: !cc.ptr<i8>) -> !cc.struct<{i64, f64}> {
-  %0 = cc.undef !cc.struct<{i64, f64}>
-  return %0 : !cc.struct<{i64, f64}>
+func.func @test_4(%sret: !cc.ptr<!cc.struct<{i64, f64}>> {llvm.sret = !cc.struct<{i64, f64}>}, %this: !cc.ptr<i8>) {
+  return
 }
 
 // CHECK-LABEL: define void @__nvqpp__mlirgen__test_4({ i64, double }* nocapture writeonly sret({ i64, double }) 
@@ -333,9 +332,8 @@ func.func @__nvqpp__mlirgen__test_5() -> (i64, f64) attributes {no_this} {
   return %c1, %c2 : i64, f64
 }
 
-func.func @test_5() -> !cc.struct<{i64, f64}> {
-  %0 = cc.undef !cc.struct<{i64, f64}>
-  return %0 : !cc.struct<{i64, f64}>
+func.func @test_5(%sret: !cc.ptr<!cc.struct<{i64, f64}>> {llvm.sret = !cc.struct<{i64, f64}>}) {
+  return
 }
 
 // CHECK-LABEL: define void @__nvqpp__mlirgen__test_5({ i64, double }* nocapture writeonly sret({ i64, double }) 

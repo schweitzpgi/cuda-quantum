@@ -396,23 +396,29 @@ static bool shouldExpand(SmallVectorImpl<Type> &packedTys,
   SmallVector<Type> set1;
   SmallVector<Type> set2;
   for (auto ty : structTy.getMembers()) {
-    if (bits > 128)
-      return false;
     if (auto intTy = dyn_cast<IntegerType>(ty)) {
-      bits += scaleBits(intTy.getWidth());
-      if (bits <= 64)
+      auto addBits = scaleBits(intTy.getWidth());
+      if (bits + addBits <= 64) {
+        bits += addBits;
         set1.push_back(ty);
-      else
+      } else {
+        bits = std::max(bits, 64u) + addBits;
         set2.push_back(ty);
+      }
     } else if (auto fltTy = dyn_cast<FloatType>(ty)) {
-      bits += fltTy.getWidth();
-      if (bits <= 64)
+      auto addBits = fltTy.getWidth();
+      if (bits + addBits <= 64) {
+        bits += addBits;
         set1.push_back(ty);
-      else
+      } else {
+        bits = std::max(bits, 64u) + addBits;
         set2.push_back(ty);
+      }
     } else {
       return false;
     }
+    if (bits > 128)
+      return false;
   }
 
   // Process the sets. If the set has anything integral, use integer. If the set
