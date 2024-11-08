@@ -644,6 +644,9 @@ void ASTBridgeAction::ASTBridgeConsumer::HandleTranslationUnit(
       }
     }
   }
+
+  if (!isTupleReversed())
+    module.get()->setAttr(cudaq::runtime::usingLibcpp, UnitAttr::get(ctx));
 }
 
 bool ASTBridgeAction::ASTBridgeConsumer::HandleTopLevelDecl(

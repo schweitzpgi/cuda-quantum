@@ -28,6 +28,7 @@ static constexpr const char launchKernelStreamlinedFuncName[] =
 static constexpr const char launchKernelHybridFuncName[] = "hybridLaunchKernel";
 
 static constexpr const char mangledNameMap[] = "quake.mangled_name_map";
+static constexpr const char usingLibcpp[] = "quake.using_libcpp";
 
 static constexpr const char deviceCodeHolderAdd[] =
     "__cudaq_deviceCodeHolderAdd";

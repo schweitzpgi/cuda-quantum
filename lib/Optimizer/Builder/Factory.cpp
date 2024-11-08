@@ -305,13 +305,26 @@ cc::LoopOp factory::createMonotonicLoop(
   return loop;
 }
 
-cc::StructType factory::stlStringType(MLIRContext *ctx) {
+// std::string in libstdc++. {ptr, size, scratchpad} for 32 bytes.
+cc::StructType factory::stlStringTypeLibstdcpp(MLIRContext *ctx) {
   auto i8Ty = IntegerType::get(ctx, 8);
   auto ptrI8Ty = cc::PointerType::get(i8Ty);
   auto i64Ty = IntegerType::get(ctx, 64);
   auto padTy = cc::ArrayType::get(ctx, i8Ty, 16);
   return cc::StructType::get(ctx, ArrayRef<Type>{ptrI8Ty, i64Ty, padTy});
 }
+
+// std::string in libc++ has a smaller and less efficient implementation.
+// It is 24 bytes and is a union discriminated by the LSB of the 3rd word.
+// 0: { pad : i64, length : i64, ptr-to-chars | 0}
+// 1: { length << 1 : i8, scratchpad : [15 x i8], ptr-to-scratchpad | 1}
+cc::StructType factory::stlStringTypeLibcpp(MLIRContext *ctx) {
+  auto i8Ty = IntegerType::get(ctx, 8);
+  auto ptrI8Ty = cc::PointerType::get(i8Ty);
+  auto padTy = cc::ArrayType::get(ctx, i8Ty, 15);
+  return cc::StructType::get(ctx, ArrayRef<Type>{i8Ty, padTy, ptrI8Ty});
+}
+
 
 // FIXME: We should get the underlying structure of a std::vector from the
 // AST. For expediency, we just construct the expected type directly here.
