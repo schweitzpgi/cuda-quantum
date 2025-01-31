@@ -566,9 +566,13 @@ endif()
 add_subdirectory(tools)
 add_subdirectory(utils)
 
+find_package(Python 3 COMPONENTS Interpreter Development)
+execute_process(
+  COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+find_package(nanobind CONFIG REQUIRED)
+
 if (CUDAQ_ENABLE_PYTHON)
-  find_package(Python 3 COMPONENTS Interpreter Development)
-  
   # Apply specific patch to pybind11 for our documentation.
   # Only apply the patch if not already applied.
   execute_process(COMMAND ${GIT_EXECUTABLE} -C tpls/pybind11/ apply ../customizations/pybind11/pybind.h.diff --ignore-whitespace --reverse --check
