@@ -4080,6 +4080,9 @@ class PyASTBridge(ast.NodeVisitor):
                 # We want to create a hash value from it, and 
                 # we then want to push the number of parameters and 
                 # that hash value. This can only be used with apply_noise
+                if not hasattr(value, 'num_parameters'):
+                    self.emitFatalError('apply_noise kraus channels must have `num_parameters` constant class attribute specified.')
+                    
                 self.pushValue(self.getConstantInt(value.num_parameters))
                 self.pushValue(self.getConstantInt(hash(value)))
                 return
