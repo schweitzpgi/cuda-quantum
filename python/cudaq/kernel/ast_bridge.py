@@ -2350,6 +2350,35 @@ class PyASTBridge(ast.NodeVisitor):
                                                                otherFuncName))
                     return
 
+                if node.func.attr == 'apply_noise':
+                    values = [
+                        self.popValue() for _ in range(len(self.valueStack))
+                    ]
+                    values.reverse()
+                    numParamsVal = values[0]
+                    values = values[1:]
+                    concreteIntAttr = IntegerAttr(
+                        numParamsVal.owner.attributes['value'])
+                    numParams = concreteIntAttr.value
+
+                    key = values[0]
+                    values = values[1:]
+                    params = values[:numParams]
+                    params2 = []
+                    for p in params:
+                        if F64Type.isinstance(p.type):
+                            alloca = cc.AllocaOp(
+                                cc.PointerType.get(self.ctx, p.type),
+                                TypeAttr.get(p.type)).result
+                            cc.StoreOp(p, alloca)
+                            params2.append(alloca)
+                        else:
+                            params2.append(p)
+
+                    qubits = values[numParams:]
+                    quake.ApplyNoiseOp(params2, qubits, key=key)
+                    return
+
                 if node.func.attr == 'compute_action':
                     # There can only be 2 arguments here.
                     action = None
@@ -4034,6 +4063,12 @@ class PyASTBridge(ast.NodeVisitor):
             errorType = type(value).__name__
             if (isinstance(value, list)):
                 errorType = f"{errorType}[{type(value[0]).__name__}]"
+
+            if issubclass(value, cudaq_runtime.KrausChannel):
+                print(value, hash(value), value.num_parameters)
+                self.pushValue(self.getConstantInt(value.num_parameters))
+                self.pushValue(self.getConstantInt(hash(value)))
+                return
 
             self.emitFatalError(
                 f"Invalid type for variable ({node.id}) captured from parent scope (only int, bool, float, complex, cudaq.State, and list/np.ndarray[int|bool|float|complex] accepted, type was {errorType}).",
