@@ -13,6 +13,7 @@ import cudaq
 
 
 def test_exp_pauli():
+
     @cudaq.kernel
     def kernel_initial_state(angles: list[float]):
         qreg = cudaq.qvector(len(angles))
@@ -54,22 +55,23 @@ def test_exp_pauli():
 
     cudaq.set_target('qpp-cpu')
     angles = [0.34, 1.2, 1.6]
-    
+
     # create the initial state (using the initial state)
     initial = np.array(cudaq.get_state(kernel_initial_state, angles))
-    
+
     # create the initial state + ancilla, hadamard, then perform a
     # controlled rotation on the |1> subspace of the ancilla
     full = np.array(cudaq.get_state(kernel_ancilla_rotation, angles))
-    
+
     # create the initial state and perform a rotation (for comparison with full)
     rotation = np.array(cudaq.get_state(kernel_noancilla_rotation, angles))
-    
+
     # create the initial state + ancilla, hadamard, then perform a
     # controlled exp_pauli on the |1> subspace of the ancilla
     epauli = np.array(cudaq.get_state(kernel_ancilla_exp_pauli, angles))
 
     print(cudaq.translate(kernel_ancilla_exp_pauli, format='qir'))
+
 
 # CHECK-LABEL: define void @__nvqpp__mlirgen__U_exp_pauli.ctrl(
 # CHECK:         call void @__quantum__qis__exp_pauli__ctl(double 2.310000e+01, %Array* %{{.*}}, %Array* %{{.*}}, i8* nonnull %{{.*}})
@@ -77,7 +79,7 @@ def test_exp_pauli():
 # CHECK-LABEL: define void @__nvqpp__mlirgen__U_exp_pauli(
 # CHECK:         call void @__quantum__qis__exp_pauli(double 2.310000e+01, %Array* %{{.*}}, i8* nonnull {{.*}})
 
-# CHECK-LABEL: define void @__nvqpp__mlirgen__kernel_ancilla_exp_pauli({ double*, i64 } 
+# CHECK-LABEL: define void @__nvqpp__mlirgen__kernel_ancilla_exp_pauli({ double*, i64 }
 # CHECK-SAME:    %[[VAL_0:.*]])
 # CHECK:         %[[VAL_1:.*]] = alloca [1 x { i8*, i64 }], align 8
 # CHECK:         %[[VAL_2:.*]] = tail call %Qubit* @__quantum__rt__qubit_allocate()
@@ -115,4 +117,3 @@ def test_exp_pauli():
 # CHECK-DAG:     call void @__quantum__rt__qubit_release_array(%Array* %[[VAL_5]])
 # CHECK:         ret void
 # CHECK:       }
-
