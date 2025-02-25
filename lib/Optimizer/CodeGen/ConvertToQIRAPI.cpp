@@ -1766,8 +1766,7 @@ struct AnyProfileQIR {
         SubveqOpRewrite<Self>,
 
         /* Irregular quantum operators. */
-        CustomUnitaryOpPattern<Self>, ExpPauliOpPattern<Self>,
-        ResetOpPattern<Self>>(typeConverter, ctx);
+        CustomUnitaryOpPattern<Self>, ResetOpPattern<Self>>(typeConverter, ctx);
     commonQuakeHandlingPatterns(patterns, typeConverter, ctx);
     commonClassicalHandlingPatterns(patterns, typeConverter, ctx);
   }
@@ -1815,7 +1814,7 @@ struct BaseProfileQIR : public AnyProfileQIR<opaquePtr> {
         .insert<DiscriminateOpToCallRewrite<Self>, MeasurementOpPattern<Self>,
 
                 /* Regular quantum operators. */
-                QuantumGatePattern<Self, quake::HOp>,
+                ExpPauliOpPattern<Self>, QuantumGatePattern<Self, quake::HOp>,
                 QuantumGatePattern<Self, quake::PhasedRxOp>,
                 QuantumGatePattern<Self, quake::R1Op>,
                 QuantumGatePattern<Self, quake::RxOp>,
@@ -1855,7 +1854,7 @@ struct AdaptiveProfileQIR : public AnyProfileQIR<opaquePtr> {
         .insert<DiscriminateOpToCallRewrite<Self>, MeasurementOpPattern<Self>,
 
                 /* Regular quantum operators. */
-                QuantumGatePattern<Self, quake::HOp>,
+                ExpPauliOpPattern<Self>, QuantumGatePattern<Self, quake::HOp>,
                 QuantumGatePattern<Self, quake::PhasedRxOp>,
                 QuantumGatePattern<Self, quake::R1Op>,
                 QuantumGatePattern<Self, quake::RxOp>,
