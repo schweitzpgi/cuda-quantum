@@ -1767,23 +1767,7 @@ struct AnyProfileQIR {
 
         /* Irregular quantum operators. */
         CustomUnitaryOpPattern<Self>, ExpPauliOpPattern<Self>,
-        ResetOpPattern<Self>,
-
-        /* Regular quantum operators. */
-        QuantumGatePattern<Self, quake::HOp>,
-        QuantumGatePattern<Self, quake::PhasedRxOp>,
-        QuantumGatePattern<Self, quake::R1Op>,
-        QuantumGatePattern<Self, quake::RxOp>,
-        QuantumGatePattern<Self, quake::RyOp>,
-        QuantumGatePattern<Self, quake::RzOp>,
-        QuantumGatePattern<Self, quake::SOp>,
-        QuantumGatePattern<Self, quake::SwapOp>,
-        QuantumGatePattern<Self, quake::TOp>,
-        QuantumGatePattern<Self, quake::U2Op>,
-        QuantumGatePattern<Self, quake::U3Op>,
-        QuantumGatePattern<Self, quake::XOp>,
-        QuantumGatePattern<Self, quake::YOp>,
-        QuantumGatePattern<Self, quake::ZOp>>(typeConverter, ctx);
+        ResetOpPattern<Self>>(typeConverter, ctx);
     commonQuakeHandlingPatterns(patterns, typeConverter, ctx);
     commonClassicalHandlingPatterns(patterns, typeConverter, ctx);
   }
