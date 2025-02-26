@@ -100,5 +100,9 @@ enum class KrausChannelDataKind { FloatKind, DoubleKind };
 
 static constexpr const char QISApplyKrausChannel[] =
     "__quantum__qis__apply_kraus_channel_generalized";
+static constexpr const char QISArrayToQVector[] =
+    "__quantum__qis__convert_array_to_qvector";
+static constexpr const char QISQVectorDtor[] =
+    "__quantum__qis__qvector_destructor";
 
 } // namespace cudaq::opt

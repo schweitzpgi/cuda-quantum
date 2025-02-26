@@ -436,6 +436,8 @@ static constexpr IntrinsicCode intrinsicTable[] = {
 
   llvm.func @generalizedInvokeWithRotationsControlsTargets(i64, i64, i64, i64, !qir_llvmptr, ...) attributes {sym_visibility = "private"}
   llvm.func @__quantum__qis__apply_kraus_channel_generalized(i64, i64, i64, i64, i64, ...) attributes {sym_visibility = "private"}
+  func.func private @__quantum__qis__convert_array_to_qvector(!qir_array, !qir_array)
+  func.func private @__quantum__qis__qvector_destructor(!qir_array)
 )#"},
 
     // Declarations for base and adaptive profile QIR functions used by codegen.

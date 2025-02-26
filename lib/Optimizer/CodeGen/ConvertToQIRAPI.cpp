@@ -373,13 +373,14 @@ struct ApplyNoiseOpRewrite : public OpConversionPattern<quake::ApplyNoiseOp> {
     // values, each individually, back to the host-side function. Since that's
     // already the case, we just append the operands.
     SmallVector<Value> args;
+    auto *ctx = rewriter.getContext();
+    auto funcTy = FunctionType::get(ctx, {}, {});
     if (adaptor.getParameters().size() == 1 &&
         isa<cudaq::cc::StdvecType>(adaptor.getParameters()[0].getType())) {
       Value svp = adaptor.getParameters()[0];
       // Convert the device-side span back to a host-side vector so that C++
       // doesn't crash.
       auto stdvecTy = cast<cudaq::cc::StdvecType>(svp.getType());
-      auto *ctx = rewriter.getContext();
       auto ptrTy = cudaq::cc::PointerType::get(stdvecTy.getElementType());
       auto ptrArrTy = cudaq::cc::PointerType::get(
           cudaq::cc::ArrayType::get(stdvecTy.getElementType()));
@@ -410,7 +411,6 @@ struct ApplyNoiseOpRewrite : public OpConversionPattern<quake::ApplyNoiseOp> {
 
       // Finally, we need to modify the called function's signature.
       auto module = noise->getParentOfType<ModuleOp>();
-      auto funcTy = FunctionType::get(ctx, {}, {});
       auto [fn, flag] = cudaq::opt::factory::getOrAddFunc(
           loc, *noise.getNoiseFunc(), funcTy, module);
       funcTy = fn.getFunctionType();
@@ -423,9 +423,29 @@ struct ApplyNoiseOpRewrite : public OpConversionPattern<quake::ApplyNoiseOp> {
       args.append(adaptor.getParameters().begin(),
                   adaptor.getParameters().end());
     }
-    args.append(adaptor.getQubits().begin(), adaptor.getQubits().end());
+    SmallVector<Value> qubitArgs;
+    SmallVector<Value> releaseVecs;
+    for (auto iter : llvm::zip(noise.getQubits(), adaptor.getQubits())) {
+      if (isa<quake::VeqType>(std::get<0>(iter).getType())) {
+        auto vecVar = rewriter.create<cudaq::cc::AllocaOp>(
+            loc, cudaq::opt::factory::stlVectorType(rewriter.getI8Type()));
+        Value qvect = rewriter.create<cudaq::cc::CastOp>(
+            loc, std::get<1>(iter).getType(), vecVar);
+        rewriter.create<func::CallOp>(
+            loc, TypeRange{}, cudaq::opt::QISArrayToQVector,
+            ArrayRef<Value>{qvect, std::get<1>(iter)});
+        qubitArgs.push_back(qvect);
+        releaseVecs.push_back(qvect);
+      } else {
+        qubitArgs.push_back(std::get<1>(iter));
+      }
+    }
+    args.append(qubitArgs.begin(), qubitArgs.end());
     rewriter.replaceOpWithNewOp<func::CallOp>(noise, TypeRange{},
                                               *noise.getNoiseFunc(), args);
+    for (auto v : releaseVecs)
+      rewriter.create<func::CallOp>(
+          loc, TypeRange{}, cudaq::opt::QISQVectorDtor, ArrayRef<Value>{v});
     return success();
   }
 };

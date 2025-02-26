@@ -58,6 +58,23 @@ struct ExternallyProvidedSimGenerator {
 };
 static std::unique_ptr<ExternallyProvidedSimGenerator> externSimGenerator;
 
+namespace cudaq::details {
+// Transparent qubit.
+struct backdoor_qubit {
+  std::size_t idx;
+  bool negated;
+};
+} // namespace cudaq::details
+
+static void arrayToQVector(std::vector<cudaq::details::backdoor_qubit> &result,
+                           Array *qubits) {
+  auto numQubits = __quantum__rt__array_get_size_1d(qubits);
+  for (std::size_t i = 0; i < numQubits; i++) {
+    std::int8_t *qubitPtr = __quantum__rt__array_get_element_ptr_1d(qubits, i);
+    result.emplace_back(*reinterpret_cast<std::size_t *>(qubitPtr), false);
+  }
+}
+
 extern "C" {
 void __nvqir__setCircuitSimulator(nvqir::CircuitSimulator *sim) {
   simulator = sim;
@@ -751,6 +768,19 @@ void __quantum__qis__apply_kraus_channel_generalized(
     throw std::runtime_error("apply_noise: unknown data kind.");
   }
   va_end(args);
+}
+
+void __quantum__qis__convert_array_to_qvector(
+    std::vector<cudaq::details::backdoor_qubit> &output, Array *qubits) {
+  ::memset((void *)&output, 0,
+           sizeof(std::vector<cudaq::details::backdoor_qubit>));
+  arrayToQVector(output, qubits);
+}
+
+void __quantum__qis__qvector_destructor(
+    std::vector<cudaq::details::backdoor_qubit> &output) {
+  std::vector<cudaq::details::backdoor_qubit> empty;
+  std::swap(output, empty);
 }
 
 void __quantum__qis__custom_unitary(std::complex<double> *unitary,
