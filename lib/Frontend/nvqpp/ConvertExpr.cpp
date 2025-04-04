@@ -2062,23 +2062,16 @@ bool QuakeBridgeVisitor::VisitCallExpr(clang::CallExpr *x) {
 
     if (funcName == "device_call") {
       // Generate the high-level DeviceCallOp.
-      bool hasResult = false;
-      auto tys = [&]() -> SmallVector<Type> {
-        if (typeStack.empty())
-          return {};
-        hasResult = true;
-        return {peekType()};
-      }();
       auto funcConst = args[0].getDefiningOp<func::ConstantOp>();
       auto symbol = funcConst.getValue();
       auto devFunc = module.lookupSymbol<func::FuncOp>(symbol);
       devFunc->setAttr(cudaq::deviceCallAttrName, builder.getUnitAttr());
-      auto callArgs = convertKernelArgs(
-          builder, loc, 1, args,
-          cast<FunctionType>(funcConst.getType()).getInputs());
-      auto devCall =
-          builder.create<cc::DeviceCallOp>(loc, tys, symbol, callArgs);
-      if (!hasResult)
+      auto devFuncTy = cast<FunctionType>(funcConst.getType());
+      auto callArgs =
+          convertKernelArgs(builder, loc, 1, args, devFuncTy.getInputs());
+      auto devCall = builder.create<cc::DeviceCallOp>(
+          loc, devFuncTy.getResults(), symbol, callArgs);
+      if (devFuncTy.getResults().empty())
         return true;
       return pushValue(devCall.getResult(0));
     }
