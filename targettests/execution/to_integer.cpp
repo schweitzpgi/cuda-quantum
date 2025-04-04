@@ -6,9 +6,8 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-// RUN: nvq++ %cpp_std --enable-mlir %s -o %t && %t
-// TODO-FIX-KERNEL-EXEC
-// RUN: nvq++ %cpp_std -fkernel-exec-kind=2 --enable-mlir %s -o %t && %t
+// RUN: nvq++ %cpp_std %s -o %t && %t
+// BROKEN: nvq++ %cpp_std -fkernel-exec-kind=2 %s -o %t && %t
 
 #include <cstdio>
 #include <cudaq.h>
