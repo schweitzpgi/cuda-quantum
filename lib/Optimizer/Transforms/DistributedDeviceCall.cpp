@@ -284,6 +284,7 @@ public:
     Block *entryBlock = unmarshalFunc.addEntryBlock();
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(entryBlock);
+    auto *ctx = rewriter.getContext();
 
     // Unmarshal arguments from the buffer and call the device function.
     auto i64Ty = rewriter.getI64Type();
@@ -301,17 +302,41 @@ public:
         loc, ptrBuffTy, entryBlock->getArgument(0));
     FunctionType devFuncTy = devFunc.getFunctionType();
     SmallVector<Value> args;
+    auto module = devFunc->getParentOfType<ModuleOp>();
+    auto newDevFuncTy = cudaq::opt::factory::toHostSideFuncType(
+        devFuncTy, /*addThisPtr=*/false, module);
+    llvm::errs() << newDevFuncTy << '\n' << devFuncTy << '\n';
+    std::size_t offset = 0;
     for (auto iter : llvm::enumerate(devFuncTy.getInputs())) {
       auto [a, t] = cudaq::opt::marshal::processCallbackInputValue(
           loc, rewriter, trailingData, argsBuffer, iter.value(), iter.index(),
           bufferTy);
       trailingData = t;
+      if (auto strTy = dyn_cast<cudaq::cc::StructType>(iter.value())) {
+        if (cudaq::opt::factory::isX86_64(module) &&
+            cudaq::opt::factory::structUsesTwoArguments(strTy)) {
+          auto i = iter.index() + offset;
+          SmallVector<Type> inputs{newDevFuncTy.getInputs().begin(),
+                                   newDevFuncTy.getInputs().end()};
+          SmallVector<Type> pair{inputs[i], inputs[i + 1]};
+          ++offset;
+          auto dubTy = cudaq::cc::PointerType::get(
+              cudaq::cc::StructType::get(ctx, pair));
+          auto dubPtr = rewriter.create<cudaq::cc::CastOp>(loc, dubTy, a);
+          auto ptr0 = rewriter.create<cudaq::cc::ComputePtrOp>(
+              loc, cudaq::cc::PointerType::get(inputs[i]), dubPtr,
+              ArrayRef<cudaq::cc::ComputePtrArg>{0});
+          args.push_back(rewriter.create<cudaq::cc::LoadOp>(loc, ptr0));
+          auto ptr1 = rewriter.create<cudaq::cc::ComputePtrOp>(
+              loc, cudaq::cc::PointerType::get(inputs[i + 1]), dubPtr,
+              ArrayRef<cudaq::cc::ComputePtrArg>{1});
+          args.push_back(rewriter.create<cudaq::cc::LoadOp>(loc, ptr1));
+          continue;
+        }
+      }
       args.push_back(a);
     }
 
-    auto module = rawBuffer->getParentOfType<ModuleOp>();
-    auto newDevFuncTy = cast<FunctionType>(
-        cudaq::opt::factory::convertToHostSideType(devFuncTy, module));
     auto callDevFunc = rewriter.create<func::CallOp>(
         loc, newDevFuncTy.getResults(), devFunc.getName(), args);
 

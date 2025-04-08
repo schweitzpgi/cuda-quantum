@@ -869,8 +869,8 @@ void cudaq::opt::marshal::maybeFreeHeapAllocations(Location loc,
 
 /// Fetch an argument from the comm buffer. Here, the argument is not dynamic so
 /// it can be read as is out of the buffer.
-static Value fetchInputValue(Location loc, OpBuilder &builder, Type devTy,
-                             Value ptr) {
+template <bool FromQPU>
+Value fetchInputValue(Location loc, OpBuilder &builder, Type devTy, Value ptr) {
   assert(!cudaq::cc::isDynamicType(devTy) && "must not be a dynamic type");
   if (isa<cudaq::cc::IndirectCallableType>(devTy)) {
     // An indirect callable passes a key value which will be used to determine
@@ -893,7 +893,11 @@ static Value fetchInputValue(Location loc, OpBuilder &builder, Type devTy,
 
     // Cast to avoid conflicts between layout compatible, distinct struct types.
     auto structPtr = builder.create<cudaq::cc::CastOp>(loc, ptrDevTy, ptr);
-    return builder.create<cudaq::cc::LoadOp>(loc, structPtr);
+    if constexpr (FromQPU) {
+      return structPtr;
+    } else {
+      return builder.create<cudaq::cc::LoadOp>(loc, structPtr);
+    }
   }
 
   // Default case: argument passed as a value inplace.
@@ -1080,7 +1084,7 @@ constructDynamicInputValue(Location loc, OpBuilder &builder, Type devTy,
       trailingData = r.second;
       continue;
     }
-    auto val = fetchInputValue(loc, builder, devMemTy, dataPtr);
+    auto val = fetchInputValue<FromQPU>(loc, builder, devMemTy, dataPtr);
     result =
         builder.create<cudaq::cc::InsertValueOp>(loc, strTy, result, val, off);
   }
@@ -1111,7 +1115,7 @@ processInputValueImpl(Location loc, OpBuilder &builder, Value trailingData,
                                                  trailingData);
     }
   }
-  auto val = fetchInputValue(loc, builder, inTy, packedPtr);
+  auto val = fetchInputValue<FromQPU>(loc, builder, inTy, packedPtr);
   return {val, trailingData};
 }
 
