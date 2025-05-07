@@ -382,7 +382,7 @@ public:
     RewritePatternSet patterns(ctx);
     patterns.insert<StatePrepPattern>(ctx, phaseThreshold);
 
-    if (failed(applyPatternsAndFoldGreedily(func.getOperation(),
+    if (failed(applyPatternsGreedily(func.getOperation(),
                                             std::move(patterns)))) {
       func.emitOpError("State preparation failed");
       signalPassFailure();

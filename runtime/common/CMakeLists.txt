@@ -31,13 +31,20 @@ set_property(GLOBAL APPEND PROPERTY CUDAQ_RUNTIME_LIBS ${LIBRARY_NAME})
 
 # Setup the includes
 target_include_directories(${LIBRARY_NAME} 
-    PRIVATE . 
-        $<BUILD_INTERFACE:${LLVM_INCLUDE_DIRS}>
-        ${CMAKE_SOURCE_DIR}/tpls/eigen 
-        ${CMAKE_SOURCE_DIR}/runtime)
+  PRIVATE . 
+    $<BUILD_INTERFACE:${LLVM_INCLUDE_DIRS}>
+    ${CMAKE_SOURCE_DIR}/tpls/eigen 
+    ${CMAKE_SOURCE_DIR}/runtime
+)
 
 # Link privately to all dependencies
-target_link_libraries(${LIBRARY_NAME} PUBLIC cudaq-operator PRIVATE spdlog::spdlog)
+target_link_libraries(${LIBRARY_NAME}
+  PUBLIC
+    cudaq-operator
+  PRIVATE
+    fmt::fmt-header-only
+    spdlog::spdlog
+)
 
 # Bug in GCC 12 leads to spurious warnings (-Wrestrict)
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105329
@@ -52,8 +59,10 @@ if(OPENSSL_FOUND)
   message(STATUS "OpenSSL Found, building REST Client.")
 
   target_sources(${LIBRARY_NAME} PRIVATE RestClient.cpp)
-  target_link_libraries(${LIBRARY_NAME} PRIVATE cpr::cpr -Wl,--start-group ZLIB::ZLIB)
-  target_compile_definitions(${LIBRARY_NAME} PRIVATE -DCUDAQ_RESTCLIENT_AVAILABLE)
+  target_link_libraries(${LIBRARY_NAME}
+    PRIVATE cpr::cpr -Wl,--start-group ZLIB::ZLIB)
+  target_compile_definitions(${LIBRARY_NAME}
+    PRIVATE -DCUDAQ_RESTCLIENT_AVAILABLE)
 endif()
 
 
@@ -126,7 +135,9 @@ target_link_libraries(cudaq-mlir-runtime
     MLIRLLVMCommonConversion
     MLIRLLVMToLLVMIRTranslation
   PRIVATE
+    spdlog::spdlog
+    fmt::fmt
     cudaq
-    spdlog::spdlog)
+)
 
 install(TARGETS cudaq-mlir-runtime DESTINATION lib)

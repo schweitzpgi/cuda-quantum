@@ -636,7 +636,7 @@ struct MappingFunc : public cudaq::opt::impl::MappingFuncBase<MappingFunc> {
     auto walkResult = func.walk([&](quake::BorrowWireOp borrowOp) {
       if (inputWireSet.empty())
         inputWireSet = borrowOp.getSetName();
-      else if (!borrowOp.getSetName().equals(inputWireSet)) {
+      else if (borrowOp.getSetName() != inputWireSet) {
         func.emitOpError("function cannot use multiple WireSets");
         return WalkResult::interrupt();
       }

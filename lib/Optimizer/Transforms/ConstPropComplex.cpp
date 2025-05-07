@@ -182,7 +182,7 @@ public:
     LLVM_DEBUG(llvm::dbgs() << "Before constant propagation of complex values: "
                             << func << '\n');
 
-    if (failed(applyPatternsAndFoldGreedily(func.getOperation(),
+    if (failed(applyPatternsGreedily(func.getOperation(),
                                             std::move(patterns))))
       signalPassFailure();
 
