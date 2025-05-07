@@ -312,7 +312,7 @@ public:
 
         // This is a quantum op. It should be updated with an additional control
         // argument, `newCond`.
-        auto arrAttr = op->getAttr(segmentSizes).cast<DenseI32ArrayAttr>();
+        auto arrAttr = cast<DenseI32ArrayAttr>(op->getAttr(segmentSizes));
         SmallVector<std::int32_t> arrRef{arrAttr.asArrayRef().begin(),
                                          arrAttr.asArrayRef().end()};
         SmallVector<Value> operands(op->getOperands().begin(),
@@ -421,7 +421,7 @@ public:
   static Value createIntConstant(OpBuilder &builder, Location loc, Type ty,
                                  std::int64_t val) {
     auto attr = builder.getIntegerAttr(ty, val);
-    return builder.create<arith::ConstantOp>(loc, attr, ty);
+    return builder.create<arith::ConstantOp>(loc, ty, attr);
   }
 
   /// Clone the LoopOp, \p loop, and return a new LoopOp that runs the loop
@@ -591,7 +591,7 @@ public:
       bool opWasNegated = false;
       IRMapping mapper;
       LLVM_DEBUG(llvm::dbgs() << "moving quantum op: " << *op << ".\n");
-      auto arrAttr = op->getAttr(segmentSizes).cast<DenseI32ArrayAttr>();
+      auto arrAttr = cast<DenseI32ArrayAttr>(op->getAttr(segmentSizes));
       // Walk over any floating-point parameters to `op` and negate them.
       for (auto iter = op->getOperands().begin(),
                 endIter = op->getOperands().begin() + arrAttr[0];

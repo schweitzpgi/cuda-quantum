@@ -152,7 +152,7 @@ public:
     auto *op = getOperation();
     RewritePatternSet patterns(ctx);
     patterns.insert<AllocaAggregate, StoreAggregate>(ctx);
-    if (failed(applyPatternsAndFoldGreedily(op, std::move(patterns))))
+    if (failed(applyPatternsGreedily(op, std::move(patterns))))
       signalPassFailure();
   }
 };

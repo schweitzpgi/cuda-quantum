@@ -169,7 +169,7 @@ public:
   /// the adjacency attribute of a `WireSetOp`.
   static Device attr(const mlir::SparseElementsAttr &attr) {
     Device device;
-    auto tensorType = attr.getType().dyn_cast<mlir::RankedTensorType>();
+    auto tensorType = dyn_cast<mlir::RankedTensorType>(attr.getType());
     if (!tensorType || tensorType.getRank() != 2 ||
         tensorType.getShape()[0] != tensorType.getShape()[1] ||
         !tensorType.getElementType().isInteger(1)) {
