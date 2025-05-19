@@ -2280,8 +2280,8 @@ bool QuakeBridgeVisitor::VisitCallExpr(clang::CallExpr *x) {
   auto funcResults = mlirFuncTy.getResults();
   auto convertedArgs =
       convertKernelArgs(builder, loc, 0, args, mlirFuncTy.getInputs());
-  auto call = builder.create<func::CallIndirectOp>(loc, funcResults, calleeOp,
-                                                   convertedArgs);
+  auto call = builder.create<func::CallIndirectOp>(
+      loc, funcResults, calleeOp, convertedArgs, ArrayAttr{}, ArrayAttr{});
   if (call.getNumResults() > 0)
     return pushValue(call.getResult(0));
   return true;
@@ -2445,7 +2445,8 @@ bool QuakeBridgeVisitor::VisitCXXOperatorCallExpr(
         auto convertedArgs =
             convertKernelArgs(builder, loc, 0, args, funcTy.getInputs());
         auto call = builder.create<func::CallIndirectOp>(
-            loc, funcTy.getResults(), indirect, convertedArgs);
+            loc, funcTy.getResults(), indirect, convertedArgs, ArrayAttr{},
+            ArrayAttr{});
         if (call.getResults().empty())
           return true;
         return pushValue(call.getResult(0));
