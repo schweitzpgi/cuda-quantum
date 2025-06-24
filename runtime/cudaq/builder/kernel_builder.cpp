@@ -903,7 +903,7 @@ void tagEntryPoint(ImplicitLocOpBuilder &builder, ModuleOp &module,
       function->setAttr(cudaq::kernelAttrName, builder.getUnitAttr());
     if (!function->hasAttr(cudaq::entryPointAttrName) &&
         !hasAnyQubitTypes(function.getFunctionType()) &&
-        (symbolName.empty() || function.getSymName().equals(symbolName)))
+        (symbolName.empty() || function.getSymName() == symbolName))
       function->setAttr(cudaq::entryPointAttrName, builder.getUnitAttr());
 
     return WalkResult::advance();
@@ -1012,7 +1012,8 @@ jitCode(ImplicitLocOpBuilder &builder, ExecutionEngine *jit,
 
   cudaq::info("- Pass manager was applied.");
   ExecutionEngineOptions opts;
-  opts.transformer = [](llvm::Module *m) { return llvm::ErrorSuccess(); };
+  auto transformer = [](llvm::Module *m) { return llvm::ErrorSuccess(); };
+  opts.transformer = transformer;
   opts.jitCodeGenOptLevel = llvm::CodeGenOptLevel::None;
   SmallVector<StringRef, 4> sharedLibs;
   for (auto &lib : extraLibPaths) {
@@ -1020,7 +1021,7 @@ jitCode(ImplicitLocOpBuilder &builder, ExecutionEngine *jit,
     sharedLibs.push_back(lib);
   }
   opts.sharedLibPaths = sharedLibs;
-  opts.llvmModuleBuilder =
+  auto aBuilder =
       [](Operation *module,
          llvm::LLVMContext &llvmContext) -> std::unique_ptr<llvm::Module> {
     auto llvmModule = translateModuleToLLVMIR(module, llvmContext);
@@ -1046,6 +1047,7 @@ jitCode(ImplicitLocOpBuilder &builder, ExecutionEngine *jit,
                                                     tmOrError.get().get());
     return llvmModule;
   };
+  opts.llvmModuleBuilder = aBuilder;
 
   cudaq::info(" - Creating the MLIR ExecutionEngine");
   auto jitOrError = ExecutionEngine::create(module, opts);

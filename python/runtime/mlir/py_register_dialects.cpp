@@ -49,20 +49,20 @@ void registerQuakeDialectAndTypes(py::module &m) {
       py::arg("context") = py::none(), py::arg("load") = true);
 
   mlir_type_subclass(quakeMod, "RefType", [](MlirType type) {
-    return unwrap(type).isa<quake::RefType>();
+    return isa<quake::RefType>(unwrap(type));
   }).def_classmethod("get", [](py::object cls, MlirContext ctx) {
     return wrap(quake::RefType::get(unwrap(ctx)));
   });
 
   mlir_type_subclass(quakeMod, "MeasureType", [](MlirType type) {
-    return unwrap(type).isa<quake::MeasureType>();
+    return isa<quake::MeasureType>(unwrap(type));
   }).def_classmethod("get", [](py::object cls, MlirContext ctx) {
     return wrap(quake::MeasureType::get(unwrap(ctx)));
   });
 
   mlir_type_subclass(
       quakeMod, "VeqType",
-      [](MlirType type) { return unwrap(type).isa<quake::VeqType>(); })
+      [](MlirType type) { return isa<quake::VeqType>(unwrap(type)); })
       .def_classmethod(
           "get",
           [](py::object cls, MlirContext ctx, std::size_t size) {
@@ -95,13 +95,13 @@ void registerQuakeDialectAndTypes(py::module &m) {
 
   mlir_type_subclass(
       quakeMod, "StruqType",
-      [](MlirType type) { return unwrap(type).isa<quake::StruqType>(); })
+      [](MlirType type) { return isa<quake::StruqType>(unwrap(type)); })
       .def_classmethod(
           "get",
           [](py::object cls, MlirContext ctx, py::list aggregateTypes) {
             SmallVector<Type> inTys;
             for (auto &t : aggregateTypes)
-              inTys.push_back(unwrap(t.cast<MlirType>()));
+              inTys.push_back(unwrap(cast<MlirType>(t)));
 
             return wrap(quake::StruqType::get(unwrap(ctx), inTys));
           })
@@ -110,7 +110,7 @@ void registerQuakeDialectAndTypes(py::module &m) {
                           const std::string &name, py::list aggregateTypes) {
                          SmallVector<Type> inTys;
                          for (auto &t : aggregateTypes)
-                           inTys.push_back(unwrap(t.cast<MlirType>()));
+                           inTys.push_back(unwrap(cast<MlirType>(t)));
 
                          return wrap(
                              quake::StruqType::get(unwrap(ctx), name, inTys));
@@ -154,20 +154,20 @@ void registerCCDialectAndTypes(py::module &m) {
       py::arg("context") = py::none(), py::arg("load") = true);
 
   mlir_type_subclass(ccMod, "CharspanType", [](MlirType type) {
-    return unwrap(type).isa<cudaq::cc::CharspanType>();
+    return isa<cudaq::cc::CharspanType>(unwrap(type));
   }).def_classmethod("get", [](py::object cls, MlirContext ctx) {
     return wrap(cudaq::cc::CharspanType::get(unwrap(ctx)));
   });
 
   mlir_type_subclass(ccMod, "StateType", [](MlirType type) {
-    return unwrap(type).isa<quake::StateType>();
+    return isa<quake::StateType>(unwrap(type));
   }).def_classmethod("get", [](py::object cls, MlirContext ctx) {
     return wrap(quake::StateType::get(unwrap(ctx)));
   });
 
   mlir_type_subclass(
       ccMod, "PointerType",
-      [](MlirType type) { return unwrap(type).isa<cudaq::cc::PointerType>(); })
+      [](MlirType type) { return isa<cudaq::cc::PointerType>(unwrap(type)); })
       .def_classmethod(
           "getElementType",
           [](py::object cls, MlirType type) {
@@ -187,7 +187,7 @@ void registerCCDialectAndTypes(py::module &m) {
 
   mlir_type_subclass(
       ccMod, "ArrayType",
-      [](MlirType type) { return unwrap(type).isa<cudaq::cc::ArrayType>(); })
+      [](MlirType type) { return isa<cudaq::cc::ArrayType>(unwrap(type)); })
       .def_classmethod(
           "getElementType",
           [](py::object cls, MlirType type) {
@@ -211,13 +211,13 @@ void registerCCDialectAndTypes(py::module &m) {
 
   mlir_type_subclass(
       ccMod, "StructType",
-      [](MlirType type) { return unwrap(type).isa<cudaq::cc::StructType>(); })
+      [](MlirType type) { return isa<cudaq::cc::StructType>(unwrap(type)); })
       .def_classmethod(
           "get",
           [](py::object cls, MlirContext ctx, py::list aggregateTypes) {
             SmallVector<Type> inTys;
             for (auto &t : aggregateTypes)
-              inTys.push_back(unwrap(t.cast<MlirType>()));
+              inTys.push_back(unwrap(cast<MlirType>(t)));
 
             return wrap(cudaq::cc::StructType::get(unwrap(ctx), inTys));
           })
@@ -227,7 +227,7 @@ void registerCCDialectAndTypes(py::module &m) {
              py::list aggregateTypes) {
             SmallVector<Type> inTys;
             for (auto &t : aggregateTypes)
-              inTys.push_back(unwrap(t.cast<MlirType>()));
+              inTys.push_back(unwrap(cast<MlirType>(t)));
 
             return wrap(cudaq::cc::StructType::get(unwrap(ctx), name, inTys));
           })
@@ -255,12 +255,12 @@ void registerCCDialectAndTypes(py::module &m) {
 
   mlir_type_subclass(
       ccMod, "CallableType",
-      [](MlirType type) { return unwrap(type).isa<cudaq::cc::CallableType>(); })
+      [](MlirType type) { return isa<cudaq::cc::CallableType>(unwrap(type)); })
       .def_classmethod("get",
                        [](py::object cls, MlirContext ctx, py::list inTypes) {
                          SmallVector<Type> inTys;
                          for (auto &t : inTypes)
-                           inTys.push_back(unwrap(t.cast<MlirType>()));
+                           inTys.push_back(unwrap(cast<MlirType>(t)));
 
                          return wrap(cudaq::cc::CallableType::get(
                              unwrap(ctx), FunctionType::get(unwrap(ctx), inTys,
@@ -273,7 +273,7 @@ void registerCCDialectAndTypes(py::module &m) {
 
   mlir_type_subclass(
       ccMod, "StdvecType",
-      [](MlirType type) { return unwrap(type).isa<cudaq::cc::StdvecType>(); })
+      [](MlirType type) { return isa<cudaq::cc::StdvecType>(unwrap(type)); })
       .def_classmethod(
           "getElementType",
           [](py::object cls, MlirType type) {

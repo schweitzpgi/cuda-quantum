@@ -1819,13 +1819,29 @@ def cc_NoInlineCallOp :
 
   let arguments = (ins
     FlatSymbolRefAttr:$callee,
-    Variadic<AnyType>:$args
+    Variadic<AnyType>:$args,
+    OptionalAttr<DictArrayAttr>:$arg_attrs,
+    OptionalAttr<DictArrayAttr>:$res_attrs
   );
   let results = (outs Variadic<AnyType>);
 
   let assemblyFormat = [{
     $callee `(` $args `)` `:` functional-type(operands, results) attr-dict
   }];
+
+  let builders = [
+    OpBuilder<(ins "mlir::TypeRange":$result, "mlir::FlatSymbolRefAttr":$callee,
+        "mlir::ValueRange":$args), [{
+      return build($_builder, $_state, result, callee, args, mlir::ArrayAttr{},
+        mlir::ArrayAttr{});
+    }]>,
+    OpBuilder<(ins "mlir::TypeRange":$result, "mlir::StringRef":$callee,
+        "mlir::ValueRange":$args), [{
+      return build($_builder, $_state, result,
+        mlir::FlatSymbolRefAttr::get($_builder.getContext(), callee), args,
+        mlir::ArrayAttr{}, mlir::ArrayAttr{});
+    }]>
+  ];
 
   let extraClassDeclaration = [{
     operand_range getArgOperands() {
@@ -1835,10 +1851,21 @@ def cc_NoInlineCallOp :
     operand_iterator arg_operand_begin() { return operand_begin(); }
     operand_iterator arg_operand_end() { return operand_end(); }
 
+    mlir::MutableOperandRange getArgOperandsMutable() {
+      return getArgsMutable();
+    }
+
     /// DO NOT RETURN the callee of this operation. This fools the inliner into
     /// not knowing what is actually called.
+    /// One can access the callee directly using `getCallee()`.
     mlir::CallInterfaceCallable getCallableForCallee() {
       return mlir::FlatSymbolRefAttr::get(getContext(), ".no.inline");
+    }
+
+    /// Set the callee for this operation.
+    void setCalleeFromCallable(mlir::CallInterfaceCallable callee) {
+      (*this)->setAttr(getCalleeAttrName(),
+                       llvm::cast<mlir::SymbolRefAttr>(callee));
     }
 
     mlir::LogicalResult verifySymbolUses(mlir::SymbolTableCollection &);
@@ -1875,6 +1902,12 @@ def cc_VarargCallOp :
         "mlir::ValueRange":$args), [{
       return build($_builder, $_state, result, callee, args, mlir::ArrayAttr{},
         mlir::ArrayAttr{});
+    }]>,
+    OpBuilder<(ins "mlir::TypeRange":$result, "mlir::StringRef":$callee,
+        "mlir::ValueRange":$args), [{
+      return build($_builder, $_state, result,
+        mlir::FlatSymbolRefAttr::get($_builder.getContext(), callee), args,
+        mlir::ArrayAttr{}, mlir::ArrayAttr{});
     }]>
   ];
 
