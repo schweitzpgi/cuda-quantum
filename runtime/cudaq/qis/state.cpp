@@ -17,13 +17,15 @@ namespace cudaq {
 
 std::mutex deleteStateMutex;
 
-state state::from_data(const state_data &data) {
+state &state::initialize(const state_data &data) {
   auto *simulator = cudaq::get_simulator();
   if (!simulator)
     throw std::runtime_error(
         "[state::from_data] Could not find valid simulator backend.");
-
-  return state(simulator->createStateFromData(data).release());
+  std::shared_ptr<SimulationState> newPtr{
+      simulator->createStateFromData(data).release()};
+  std::swap(internal, newPtr);
+  return *this;
 }
 
 SimulationState::precision state::get_precision() const {

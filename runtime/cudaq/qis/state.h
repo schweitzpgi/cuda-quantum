@@ -9,6 +9,7 @@
 #pragma once
 
 #include "common/SimulationState.h"
+#include "cudaq/host_config.h"
 #include <memory>
 #include <variant>
 #include <vector>
@@ -33,9 +34,38 @@ private:
 public:
   /// @brief The constructor, takes the simulation data and owns it
   explicit state(SimulationState *ptrToOwn)
-      : internal(std::shared_ptr<SimulationState>(ptrToOwn)) {}
+      : internal(std::shared_ptr<SimulationState>{ptrToOwn}) {}
   /// @brief Copy constructor (default)
   state(const state &other) = default;
+
+  /// Overloaded constructors.
+  /// These construct a `state` from a raw input state vector. The number of
+  /// qubits is determined by the size of the input vector. The user is
+  /// responsible for providing (and verifying) the element values. These values
+  /// must be correct for the simulator that is in use.
+  state(const std::vector<complex> &vector) { initialize(vector); }
+  state(const std::vector<double> &vector) {
+    initialize(std::vector<complex>{vector.begin(), vector.end()});
+  }
+  state(std::vector<double> &&vector) {
+    initialize(std::vector<complex>{vector.begin(), vector.end()});
+  }
+  state(const std::initializer_list<double> &list) {
+    initialize(std::vector<complex>{list.begin(), list.end()});
+  }
+  state(const std::vector<float> &vector) {
+    initialize(std::vector<complex>{vector.begin(), vector.end()});
+  }
+  state(std::vector<float> &&vector) {
+    initialize(std::vector<complex>{vector.begin(), vector.end()});
+  }
+  state(const std::initializer_list<float> &list) {
+    initialize(std::vector<complex>{list.begin(), list.end()});
+  }
+  state(const std::initializer_list<complex> &list) {
+    initialize(std::vector<complex>{list.begin(), list.end()});
+  }
+
   /// @brief Copy assignment
   state &operator=(state &&other);
 
@@ -91,15 +121,23 @@ public:
 
   /// @brief Return the amplitude of the given computational basis state
   std::complex<double> amplitude(const std::vector<int> &basisState);
+
   /// @brief Return the amplitudes of the given list of computational basis
   /// states
   std::vector<std::complex<double>>
   amplitudes(const std::vector<std::vector<int>> &basisStates);
+
   /// @brief Create a new state from user-provided data.
   /// The data can be host or device data.
-  static state from_data(const state_data &data);
+  static state from_data(const state_data &data) {
+    return state{}.initialize(data);
+  }
 
   ~state();
+
+private:
+  state() : internal{nullptr} {}
+  state &initialize(const state_data &data);
 };
 
 class state_helper {
