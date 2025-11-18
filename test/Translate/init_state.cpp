@@ -33,14 +33,14 @@ struct kernel {
 // CHECK:         %[[VAL_5:.*]] = bitcast [4 x { double, double }]* %[[VAL_0]] to i8*
 // CHECK:         %[[VAL_6:.*]] = bitcast double* %[[VAL_4]] to i8*
 // CHECK:         call void @llvm.memset.p0i8.i64(i8* noundef nonnull align 8 dereferenceable(40) %[[VAL_6]], i8 0, i64 40, i1 false)
-// CHECK:         %[[VAL_7:.*]] = call i8** @__nvqpp_cudaq_state_createFromData_fp64(i8* nonnull %[[VAL_5]], i64 16)
+// CHECK:         %[[VAL_7:.*]] = call i8** @__nvqpp_cudaq_state_createFromData_complex_f64(i8* nonnull %[[VAL_5]], i64 4)
 // CHECK:         %[[VAL_8:.*]] = call i64 @__nvqpp_cudaq_state_numberOfQubits(i8** %[[VAL_7]])
 // CHECK:         %[[VAL_9:.*]] = call %[[VAL_10:.*]]* @__quantum__rt__qubit_allocate_array_with_cudaq_state_ptr(i64 %[[VAL_8]], i8** %[[VAL_7]])
 // CHECK:         call void @__nvqpp_cudaq_state_delete(i8** %[[VAL_7]])
 // CHECK:         %[[VAL_11:.*]] = call i64 @__quantum__rt__array_get_size_1d(%[[VAL_10]]* %[[VAL_9]])
 // CHECK:         %[[VAL_12:.*]] = icmp sgt i64 %[[VAL_11]], 0
 // CHECK:         br i1 %[[VAL_12]], label %[[VAL_13:.*]], label %[[VAL_14:.*]]
-// CHECK:       .{{.*}}:                                           ; preds = %[[VAL_15:.*]], %[[VAL_13]]
+// CHECK:                                                 ; preds = %[[VAL_15:.*]], %[[VAL_13]]
 // CHECK:         %[[VAL_16:.*]] = phi i64 [ %[[VAL_17:.*]], %[[VAL_13]] ], [ 0, %[[VAL_15]] ]
 // CHECK:         %[[VAL_18:.*]] = call %[[VAL_19:.*]]** @__quantum__rt__array_get_element_ptr_1d(%[[VAL_10]]* %[[VAL_9]], i64 %[[VAL_16]])
 // CHECK:         %[[VAL_20:.*]] = load %[[VAL_19]]*, %[[VAL_19]]** %[[VAL_18]], align 8
@@ -48,7 +48,7 @@ struct kernel {
 // CHECK:         %[[VAL_17]] = add nuw nsw i64 %[[VAL_16]], 1
 // CHECK:         %[[VAL_23:.*]] = icmp eq i64 %[[VAL_17]], %[[VAL_11]]
 // CHECK:         br i1 %[[VAL_23]], label %[[VAL_14]], label %[[VAL_13]]
-// CHECK:       .{{.*}}:                                      ; preds = %[[VAL_13]], %[[VAL_15]]
+// CHECK:                                         ; preds = %[[VAL_13]], %[[VAL_15]]
 // CHECK:         call void @__quantum__rt__qubit_release_array(%[[VAL_10]]* %[[VAL_9]])
 // CHECK:         ret void
 // CHECK:       }
