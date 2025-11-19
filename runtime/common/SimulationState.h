@@ -8,7 +8,10 @@
 
 #pragma once
 
+#include "cudaq/utils/cudaq_utils.h"
+#include "cudaq/utils/matrix.h"
 #include <algorithm>
+#include <bitset>
 #include <complex>
 #include <memory>
 #include <optional>
@@ -28,10 +31,11 @@ using TensorStateData =
 /// @brief state_data is a variant type
 /// encoding different forms of user state vector data
 /// we support.
-using state_data = std::variant<
-    std::vector<std::complex<double>>, std::vector<std::complex<float>>,
-    std::pair<std::complex<double> *, std::size_t>,
-    std::pair<std::complex<float> *, std::size_t>, TensorStateData>;
+using state_data = std::variant<std::vector<std::complex<double>>,
+                                std::vector<std::complex<float>>,
+                                std::pair<std::complex<double> *, std::size_t>,
+                                std::pair<std::complex<float> *, std::size_t>,
+                                complex_matrix, TensorStateData>;
 
 /// @brief The `SimulationState` interface provides and extension point
 /// for concrete circuit simulation sub-types to describe their
@@ -71,16 +75,41 @@ protected:
   auto getSizeAndPtr(const state_data &data) {
     auto type = data.index();
     std::tuple<std::size_t, void *> sizeAndPtr;
-    if (type == 0)
+    if (type ==
+        cudaq::detail::variant_index<cudaq::state_data,
+                                     std::vector<std::complex<double>>>())
       sizeAndPtr = getSizeAndPtrFromVec<double, ScalarType>(data);
-    else if (type == 1)
+    else if (type ==
+             cudaq::detail::variant_index<cudaq::state_data,
+                                          std::vector<std::complex<float>>>())
       sizeAndPtr = getSizeAndPtrFromVec<float, ScalarType>(data);
-    else if (type == 2)
+    else if (type == cudaq::detail::variant_index<
+                         cudaq::state_data,
+                         std::pair<std::complex<double> *, std::size_t>>())
       sizeAndPtr = getSizeAndPtrFromPair<double, ScalarType>(data);
-    else if (type == 3)
+    else if (type == cudaq::detail::variant_index<
+                         cudaq::state_data,
+                         std::pair<std::complex<float> *, std::size_t>>())
       sizeAndPtr = getSizeAndPtrFromPair<float, ScalarType>(data);
-    else
-      throw std::runtime_error("unsupported data type for state.");
+    else if (type == cudaq::detail::variant_index<cudaq::state_data,
+                                                  complex_matrix>()) {
+      // Complex matrix is double precision only
+      if constexpr (!std::is_same_v<double, ScalarType>)
+        throw std::runtime_error("[sim-state] invalid data precision.");
+      auto &cMat = std::get<complex_matrix>(data);
+      if (cMat.rows() != cMat.cols())
+        throw std::runtime_error(
+            "[sim-state] complex matrix must be square for density matrix.");
+      // Check that it must be a power of 2
+      if (std::bitset<64>(cMat.rows()).count() != 1)
+        throw std::runtime_error("[sim-state] complex matrix size must be a "
+                                 "power of 2 for density matrix.");
+      return std::make_tuple(
+          cMat.size(),
+          reinterpret_cast<void *>(const_cast<complex_matrix &>(cMat).get_data(
+              complex_matrix::order::row_major)));
+    } else
+      throw std::runtime_error("unsupported data type for state vector.");
 
     return sizeAndPtr;
   }
