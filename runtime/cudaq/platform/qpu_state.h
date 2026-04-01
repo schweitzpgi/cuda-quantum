@@ -64,7 +64,7 @@ public:
   template <typename... Args>
   QPUState(const std::string &name, std::string &&quake, Args &&...args) {
     kernelName = name;
-    kernelQuake = quake;
+    kernelQuake = std::move(quake);
     (addArgument(args), ...);
   }
 
