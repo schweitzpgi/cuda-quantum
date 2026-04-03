@@ -43,8 +43,9 @@ struct Analysis {
             op = user;
         }
         allocations.emplace_back(op);
-      } else if (isa<func::ReturnOp>(op))
+      } else if (isa<func::ReturnOp>(op)) {
         returns.emplace_back(op);
+      }
       return WalkResult::advance();
     });
   }
