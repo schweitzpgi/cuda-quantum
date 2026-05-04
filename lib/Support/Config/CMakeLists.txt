@@ -8,6 +8,7 @@
 
 
 add_llvm_library(CUDAQTargetConfigUtil
+  HostConfig.cpp
   TargetConfig.cpp
 
   DISABLE_LLVM_LINK_LLVM_DYLIB
