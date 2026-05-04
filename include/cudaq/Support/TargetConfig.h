@@ -186,4 +186,7 @@ public:
 std::string processRuntimeArgs(const TargetConfig &config,
                                const std::map<std::string, std::string> &args);
 
+/// Get the LLVM triple of the currently running process.
+std::string getProcessTriple();
+
 } // namespace cudaq::config

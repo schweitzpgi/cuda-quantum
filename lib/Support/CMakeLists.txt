@@ -8,16 +8,17 @@
 
 add_mlir_library(CUDAQSupport
   Plugin.cpp
+  HostConfig.cpp
 
   ADDITIONAL_HEADER_DIRS
-  ${MLIR_MAIN_INCLUDE_DIR}/mlir/Pass
+    ${MLIR_MAIN_INCLUDE_DIR}/mlir/Pass
 
   DEPENDS
-  mlir-generic-headers
+    mlir-generic-headers
 
   LINK_LIBS PUBLIC
-  MLIRAnalysis
-  MLIRIR
-  )
+    MLIRAnalysis
+    MLIRIR
+)
 
 add_subdirectory(Config)

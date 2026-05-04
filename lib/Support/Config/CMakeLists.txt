@@ -13,5 +13,5 @@ add_llvm_library(CUDAQTargetConfigUtil
   DISABLE_LLVM_LINK_LLVM_DYLIB
 
   LINK_COMPONENTS
-  Support
-  )
+    Support
+)
