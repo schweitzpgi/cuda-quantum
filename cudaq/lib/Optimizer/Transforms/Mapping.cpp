@@ -6,8 +6,8 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "PassDetails.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 #include "Support/Device.h"
 #include "Support/Placement.h"
 #include "llvm/ADT/SmallSet.h"

@@ -6,9 +6,9 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "PassDetails.h"
 #include "Optimizer/Builder/Runtime.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 #include "llvm/Support/Debug.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/Operation.h"

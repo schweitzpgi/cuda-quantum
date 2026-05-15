@@ -6,9 +6,9 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "PassDetails.h"
 #include "Optimizer/Builder/Factory.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 #include "Todo.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Transforms/DialectConversion.h"

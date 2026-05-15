@@ -6,11 +6,11 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "PassDetails.h"
 #include "Frontend/nvqpp/AttributeNames.h"
 #include "Optimizer/Builder/RuntimeNames.h"
 #include "Optimizer/CodeGen/Emitter.h"
 #include "Optimizer/CodeGen/OpenQASMEmitter.h"
+#include "PassDetails.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/TypeSwitch.h"

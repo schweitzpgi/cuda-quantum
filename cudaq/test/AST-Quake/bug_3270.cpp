@@ -18,16 +18,17 @@ __qpu__ void foo() {
   auto result = mz(qubits);
 }
 
-// CHECK-LABEL:   func.func @__nvqpp__mlirgen__function_foo._Z3foov() attributes {"cudaq-entrypoint", "cudaq-kernel", no_this} {
-// CHECK:           %[[VAL_0:.*]] = quake.alloca !quake.veq<3>
-// CHECK:           %[[VAL_1:.*]] = quake.extract_ref %[[VAL_0]][0] : (!quake.veq<3>) -> !quake.ref
-// CHECK:           quake.x %[[VAL_1]] : (!quake.ref) -> ()
-// CHECK:           %[[VAL_2:.*]] = quake.extract_ref %[[VAL_0]][1] : (!quake.veq<3>) -> !quake.ref
-// CHECK:           quake.x %[[VAL_2]] : (!quake.ref) -> ()
-// CHECK:           %[[VAL_3:.*]] = quake.extract_ref %[[VAL_0]][2] : (!quake.veq<3>) -> !quake.ref
-// CHECK:           quake.x %[[VAL_3]] : (!quake.ref) -> ()
-// CHECK:           quake.mz %[[VAL_1]] name "result%{{.*}}" : (!quake.ref) -> !cc.measure_handle
-// CHECK:           quake.mz %[[VAL_2]] name "result%{{.*}}" : (!quake.ref) -> !cc.measure_handle
-// CHECK:           quake.mz %[[VAL_3]] name "result%{{.*}}" : (!quake.ref) -> !cc.measure_handle
+// CHECK-LABEL:   func.func @__nvqpp__mlirgen__function_foo._Z3foov() attributes
+// {"cudaq-entrypoint", "cudaq-kernel", no_this} { CHECK: %[[VAL_0:.*]] =
+// quake.alloca !quake.veq<3> CHECK:           %[[VAL_1:.*]] = quake.extract_ref
+// %[[VAL_0]][0] : (!quake.veq<3>) -> !quake.ref CHECK:           quake.x
+// %[[VAL_1]] : (!quake.ref) -> () CHECK:           %[[VAL_2:.*]] =
+// quake.extract_ref %[[VAL_0]][1] : (!quake.veq<3>) -> !quake.ref CHECK:
+// quake.x %[[VAL_2]] : (!quake.ref) -> () CHECK:           %[[VAL_3:.*]] =
+// quake.extract_ref %[[VAL_0]][2] : (!quake.veq<3>) -> !quake.ref CHECK:
+// quake.x %[[VAL_3]] : (!quake.ref) -> () CHECK:           quake.mz %[[VAL_1]]
+// name "result%{{.*}}" : (!quake.ref) -> !cc.measure_handle CHECK: quake.mz
+// %[[VAL_2]] name "result%{{.*}}" : (!quake.ref) -> !cc.measure_handle CHECK:
+// quake.mz %[[VAL_3]] name "result%{{.*}}" : (!quake.ref) -> !cc.measure_handle
 // CHECK:           return
 // CHECK:         }

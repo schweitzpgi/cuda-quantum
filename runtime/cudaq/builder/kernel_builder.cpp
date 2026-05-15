@@ -7,8 +7,6 @@
  ******************************************************************************/
 
 #include "kernel_builder.h"
-#include "common/Environment.h"
-#include "common/FmtCore.h"
 #include "Optimizer/Builder/Intrinsics.h"
 #include "Optimizer/Builder/Runtime.h"
 #include "Optimizer/CodeGen/Passes.h"
@@ -17,6 +15,8 @@
 #include "Optimizer/Dialect/Quake/QuakeDialect.h"
 #include "Optimizer/Dialect/Quake/QuakeOps.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "common/Environment.h"
+#include "common/FmtCore.h"
 #include "cudaq/platform/nvqpp_interface.h"
 #include "cudaq/runtime/logger/logger.h"
 #include "cudaq_internal/compiler/RuntimeMLIR.h"

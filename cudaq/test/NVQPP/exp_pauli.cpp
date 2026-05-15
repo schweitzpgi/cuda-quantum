@@ -6,10 +6,11 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-// RUN: nvq++ --target quantinuum %s -o %t && %t || echo "passed" 2>&1 | FileCheck %s
+// RUN: nvq++ --target quantinuum %s -o %t && %t || echo "passed" 2>&1 |
+// FileCheck %s
 
-#include <cudaq.h>
 #include <cstdio>
+#include <cudaq.h>
 
 struct Qernel_A {
   void operator()(std::vector<double> angles,

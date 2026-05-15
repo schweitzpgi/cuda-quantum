@@ -7,10 +7,10 @@
  ******************************************************************************/
 
 #include "Optimizer/CodeGen/QuakeToExecMgr.h"
-#include "PassDetails.h"
 #include "Optimizer/Builder/Intrinsics.h"
 #include "Optimizer/CodeGen/CudaqFunctionNames.h"
 #include "Optimizer/CodeGen/Passes.h"
+#include "PassDetails.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/Passes.h"

@@ -17,12 +17,14 @@
 // expected-note@* 0+ {{}}
 
 struct BoundaryDirectParam {
-  // expected-error@+1{{measurement handle cannot cross the host-device boundary; entry-point kernels must discriminate first}}
+  // expected-error@+1{{measurement handle cannot cross the host-device
+  // boundary; entry-point kernels must discriminate first}}
   void operator()(cudaq::measure_handle h) __qpu__ { (void)h; }
 };
 
 struct BoundaryDirectReturn {
-  // expected-error@+1{{measurement handle cannot cross the host-device boundary; entry-point kernels must discriminate first}}
+  // expected-error@+1{{measurement handle cannot cross the host-device
+  // boundary; entry-point kernels must discriminate first}}
   cudaq::measure_handle operator()() __qpu__ {
     cudaq::qubit q;
     return mz(q);
@@ -30,31 +32,32 @@ struct BoundaryDirectReturn {
 };
 
 struct BoundaryVectorParam {
-  // expected-error@+1{{measurement handle cannot cross the host-device boundary; entry-point kernels must discriminate first}}
+  // expected-error@+1{{measurement handle cannot cross the host-device
+  // boundary; entry-point kernels must discriminate first}}
   void operator()(std::vector<cudaq::measure_handle> h) __qpu__ { (void)h; }
 };
 
 struct BoundaryTupleParam {
-  // expected-error@+1{{measurement handle cannot cross the host-device boundary; entry-point kernels must discriminate first}}
-  void operator()(std::tuple<int, cudaq::measure_handle> h) __qpu__ {
-    (void)h;
-  }
+  // expected-error@+1{{measurement handle cannot cross the host-device
+  // boundary; entry-point kernels must discriminate first}}
+  void operator()(std::tuple<int, cudaq::measure_handle> h) __qpu__ { (void)h; }
 };
 
 struct BoundaryPairParam {
-  // expected-error@+1{{measurement handle cannot cross the host-device boundary; entry-point kernels must discriminate first}}
-  void operator()(std::pair<bool, cudaq::measure_handle> h) __qpu__ {
-    (void)h;
-  }
+  // expected-error@+1{{measurement handle cannot cross the host-device
+  // boundary; entry-point kernels must discriminate first}}
+  void operator()(std::pair<bool, cudaq::measure_handle> h) __qpu__ { (void)h; }
 };
 
 struct BoundaryPointerParam {
-  // expected-error@+1{{measurement handle cannot cross the host-device boundary; entry-point kernels must discriminate first}}
+  // expected-error@+1{{measurement handle cannot cross the host-device
+  // boundary; entry-point kernels must discriminate first}}
   void operator()(cudaq::measure_handle *h) __qpu__ { (void)h; }
 };
 
 struct BoundaryReferenceParam {
-  // expected-error@+1{{measurement handle cannot cross the host-device boundary; entry-point kernels must discriminate first}}
+  // expected-error@+1{{measurement handle cannot cross the host-device
+  // boundary; entry-point kernels must discriminate first}}
   void operator()(cudaq::measure_handle &h) __qpu__ { (void)h; }
 };
 
@@ -63,13 +66,16 @@ struct MeasureHandleHolder {
 };
 
 struct BoundaryAggregateParam {
-  // expected-error@+1{{measurement handle cannot cross the host-device boundary; entry-point kernels must discriminate first}}
+  // expected-error@+1{{measurement handle cannot cross the host-device
+  // boundary; entry-point kernels must discriminate first}}
   void operator()(MeasureHandleHolder s) __qpu__ { (void)s; }
 };
 
 struct BoundaryPairOfVectorParam {
-  // expected-error@+1{{measurement handle cannot cross the host-device boundary; entry-point kernels must discriminate first}}
-  void operator()(std::pair<int, std::vector<cudaq::measure_handle>> p) __qpu__ {
+  // expected-error@+1{{measurement handle cannot cross the host-device
+  // boundary; entry-point kernels must discriminate first}}
+  void
+  operator()(std::pair<int, std::vector<cudaq::measure_handle>> p) __qpu__ {
     (void)p;
   }
 };
@@ -79,7 +85,8 @@ void sink(std::int64_t);
 struct ToIntegerDirectRejected {
   void operator()() __qpu__ {
     cudaq::qvector q(8);
-    // expected-error@+1{{`cudaq::to_integer` accepts `std::vector<bool>`; wrap measurement results with `cudaq::to_bools(...)` first}}
+    // expected-error@+1{{`cudaq::to_integer` accepts `std::vector<bool>`; wrap
+    // measurement results with `cudaq::to_bools(...)` first}}
     sink(cudaq::to_integer(mz(q)));
   }
 };

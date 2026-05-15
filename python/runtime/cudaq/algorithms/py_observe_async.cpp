@@ -7,10 +7,10 @@
  ******************************************************************************/
 
 #include "py_observe_async.h"
-#include "common/Environment.h"
-#include "cudaq.h"
 #include "Optimizer/Dialect/Quake/QuakeOps.h"
 #include "Todo.h"
+#include "common/Environment.h"
+#include "cudaq.h"
 #include "cudaq/algorithms/observe.h"
 #include "runtime/cudaq/platform/py_alt_launch_kernel.h"
 #include "utils/OpaqueArguments.h"

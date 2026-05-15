@@ -18,10 +18,13 @@
 #endif
 
 void t() __qpu__ {
-	cudaq::qvector r(5);
-	cudaq:: CALL (
-		[&](){ t(r[0]); x(r[1]); },
-		[&](){ h(r[2]); });
+  cudaq::qvector r(5);
+  cudaq::CALL(
+      [&]() {
+        t(r[0]);
+        x(r[1]);
+      },
+      [&]() { h(r[2]); });
 }
 
 // CHECK-LABEL:   func.func @__nvqpp__mlirgen__function_t
@@ -33,9 +36,9 @@ void t() __qpu__ {
 // CHECK:           %[[VAL_10:.*]] = cc.create_lambda {
 // CHECK:               quake.h %{{.*}}
 // CHECK:           }
-// CHECK:           quake.compute_action %[[VAL_3]], %[[VAL_10]] : !cc.callable<() -> ()>, !cc.callable<() -> ()>
-// CHECK:           return
-// CHECK:         }
+// CHECK:           quake.compute_action %[[VAL_3]], %[[VAL_10]] :
+// !cc.callable<() -> ()>, !cc.callable<() -> ()> CHECK:           return CHECK:
+// }
 
 // DAGGER-LABEL:   func.func @__nvqpp__mlirgen__function_t
 // DAGGER-SAME: () attributes {{{.*}}"cudaq-entrypoint"{{.*}}} {
@@ -46,7 +49,6 @@ void t() __qpu__ {
 // DAGGER:           %[[VAL_10:.*]] = cc.create_lambda {
 // DAGGER:               quake.h %{{.*}}
 // DAGGER:           }
-// DAGGER:           quake.compute_action<dag> %[[VAL_3]], %[[VAL_10]] : !cc.callable<() -> ()>, !cc.callable<() -> ()>
-// DAGGER:           return
+// DAGGER:           quake.compute_action<dag> %[[VAL_3]], %[[VAL_10]] :
+// !cc.callable<() -> ()>, !cc.callable<() -> ()> DAGGER:           return
 // DAGGER:         }
-

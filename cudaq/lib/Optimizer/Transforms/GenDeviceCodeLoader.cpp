@@ -6,13 +6,13 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "PassDetails.h"
 #include "Frontend/nvqpp/AttributeNames.h"
 #include "Optimizer/Builder/Intrinsics.h"
 #include "Optimizer/Builder/Runtime.h"
 #include "Optimizer/CallGraphFix.h"
 #include "Optimizer/Dialect/CC/CCOps.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"

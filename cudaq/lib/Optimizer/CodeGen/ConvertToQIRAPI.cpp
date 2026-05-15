@@ -7,7 +7,6 @@
  ******************************************************************************/
 
 #include "CodeGenOps.h"
-#include "PassDetails.h"
 #include "Optimizer/Builder/Intrinsics.h"
 #include "Optimizer/Builder/Runtime.h"
 #include "Optimizer/CodeGen/Passes.h"
@@ -16,6 +15,7 @@
 #include "Optimizer/CodeGen/QIROpaqueStructTypes.h"
 #include "Optimizer/CodeGen/QuakeToExecMgr.h"
 #include "Optimizer/Transforms/Passes.h" // for GlobalizeArrayValues
+#include "PassDetails.h"
 #include "nlohmann/json.hpp"
 #include "llvm/Support/Debug.h"
 #include "mlir/Pass/PassManager.h"

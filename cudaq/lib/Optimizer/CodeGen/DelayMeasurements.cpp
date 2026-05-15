@@ -6,8 +6,8 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "PassDetails.h"
 #include "Optimizer/CodeGen/Passes.h"
+#include "PassDetails.h"
 
 namespace cudaq::opt {
 #define GEN_PASS_DEF_DELAYMEASUREMENTS

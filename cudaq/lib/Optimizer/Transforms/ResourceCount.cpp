@@ -7,8 +7,8 @@
  ******************************************************************************/
 
 #include "Optimizer/Transforms/ResourceCount.h"
-#include "PassDetails.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 #include "mlir/Transforms/Passes.h"
 
 using namespace mlir;

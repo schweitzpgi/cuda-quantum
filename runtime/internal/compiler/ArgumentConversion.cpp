@@ -7,13 +7,13 @@
  ******************************************************************************/
 
 #include "cudaq_internal/compiler/ArgumentConversion.h"
-#include "common/ArgumentWrapper.h"
-#include "common/DeviceCodeRegistry.h"
-#include "cudaq.h"
 #include "Optimizer/Builder/Intrinsics.h"
 #include "Optimizer/Builder/Runtime.h"
 #include "Optimizer/Dialect/Quake/QuakeOps.h"
 #include "Todo.h"
+#include "common/ArgumentWrapper.h"
+#include "common/DeviceCodeRegistry.h"
+#include "cudaq.h"
 #include "cudaq/qis/pauli_word.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/IR/DataLayout.h"

@@ -24,11 +24,11 @@ int main() {
 // CHECK:           %[[VAL_1:.*]] = cc.alloca f64
 // CHECK:           cc.store %[[VAL_0]], %[[VAL_1]] : !cc.ptr<f64>
 // CHECK:           %[[VAL_2:.*]] = quake.alloca !quake.veq<4>
-// CHECK:           %[[VAL_3:.*]] = quake.extract_ref %[[VAL_2]][0] : (!quake.veq<4>) -> !quake.ref
-// CHECK:           quake.x %[[VAL_3]] : (!quake.ref) -> ()
-// CHECK:           %[[VAL_4:.*]] = quake.extract_ref %[[VAL_2]][1] : (!quake.veq<4>) -> !quake.ref
-// CHECK:           quake.x %[[VAL_4]] : (!quake.ref) -> ()
-// CHECK:           %[[VAL_5:.*]] = cc.load %[[VAL_1]] : !cc.ptr<f64>
-// CHECK:           quake.exp_pauli (%[[VAL_5]]) %[[VAL_2]] to "XXXY" : (f64, !quake.veq<4>) -> ()
-// CHECK:           return
+// CHECK:           %[[VAL_3:.*]] = quake.extract_ref %[[VAL_2]][0] :
+// (!quake.veq<4>) -> !quake.ref CHECK:           quake.x %[[VAL_3]] :
+// (!quake.ref) -> () CHECK:           %[[VAL_4:.*]] = quake.extract_ref
+// %[[VAL_2]][1] : (!quake.veq<4>) -> !quake.ref CHECK:           quake.x
+// %[[VAL_4]] : (!quake.ref) -> () CHECK:           %[[VAL_5:.*]] = cc.load
+// %[[VAL_1]] : !cc.ptr<f64> CHECK:           quake.exp_pauli (%[[VAL_5]])
+// %[[VAL_2]] to "XXXY" : (f64, !quake.veq<4>) -> () CHECK:           return
 // CHECK:         }

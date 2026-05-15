@@ -16,9 +16,9 @@
 /// conversion to introduce explicit dereferences, conversion to the quantum
 /// load/store form (QLS), is required and performed.
 
-#include "PassDetails.h"
 #include "Optimizer/Dialect/Quake/QuakeTypes.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 #include "llvm/ADT/MapVector.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Transforms/DialectConversion.h"

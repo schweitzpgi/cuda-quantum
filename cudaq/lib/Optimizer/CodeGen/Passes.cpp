@@ -7,8 +7,8 @@
  ******************************************************************************/
 
 #include "Optimizer/CodeGen/Passes.h"
-#include "PassDetails.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/Passes.h"
 

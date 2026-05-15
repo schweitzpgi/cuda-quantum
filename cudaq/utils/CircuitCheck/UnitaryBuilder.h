@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "common/EigenDense.h"
 #include "Optimizer/Dialect/Quake/QuakeOps.h"
+#include "common/EigenDense.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include <complex>
 #include <vector>

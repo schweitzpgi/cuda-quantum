@@ -7,8 +7,8 @@
  ******************************************************************************/
 
 #include "Optimizer/Transforms/AddMetadata.h"
-#include "PassDetails.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 #include "Todo.h"
 #include "llvm/Support/Debug.h"
 #include "mlir/IR/Dominance.h"

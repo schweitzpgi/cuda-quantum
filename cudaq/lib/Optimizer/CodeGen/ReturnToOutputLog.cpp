@@ -6,12 +6,12 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "PassDetails.h"
 #include "Optimizer/Builder/Intrinsics.h"
 #include "Optimizer/Builder/Runtime.h"
 #include "Optimizer/CodeGen/Passes.h"
 #include "Optimizer/CodeGen/QIRAttributeNames.h"
 #include "Optimizer/CodeGen/QIRFunctionNames.h"
+#include "PassDetails.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Transforms/Passes.h"

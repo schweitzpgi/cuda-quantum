@@ -8,14 +8,14 @@
 
 #pragma once
 
-#include "PyTypes.h"
-#include "common/ArgumentWrapper.h"
-#include "common/FmtCore.h"
 #include "Optimizer/Builder/Runtime.h"
 #include "Optimizer/CodeGen/QIRFunctionNames.h"
 #include "Optimizer/CodeGen/QIROpaqueStructTypes.h"
 #include "Optimizer/Dialect/CC/CCTypes.h"
 #include "Optimizer/Dialect/Quake/QuakeTypes.h"
+#include "PyTypes.h"
+#include "common/ArgumentWrapper.h"
+#include "common/FmtCore.h"
 #include "cudaq/builder/kernel_builder.h"
 #include "cudaq/qis/pauli_word.h"
 #include "llvm/ADT/TypeSwitch.h"

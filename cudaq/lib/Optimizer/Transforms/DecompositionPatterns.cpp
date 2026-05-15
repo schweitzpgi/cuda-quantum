@@ -7,8 +7,8 @@
  ******************************************************************************/
 
 #include "DecompositionPatterns.h"
-#include "PassDetails.h"
 #include "Optimizer/Builder/Factory.h"
+#include "PassDetails.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/TypeName.h"

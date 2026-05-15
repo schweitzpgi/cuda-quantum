@@ -7,10 +7,10 @@
  ******************************************************************************/
 
 #include "DefaultQPU.h"
+#include "Support/TargetConfigYaml.h"
 #include "common/ExecutionContext.h"
 #include "common/FmtCore.h"
 #include "common/RuntimeTarget.h"
-#include "Support/TargetConfigYaml.h"
 #include "cudaq/platform/quantum_platform.h"
 #include "cudaq/runtime/logger/logger.h"
 #include "cudaq/simulators.h"

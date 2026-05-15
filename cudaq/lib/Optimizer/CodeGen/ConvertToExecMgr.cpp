@@ -6,11 +6,11 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "PassDetails.h"
 #include "Optimizer/Builder/Intrinsics.h"
 #include "Optimizer/CodeGen/CudaqFunctionNames.h"
 #include "Optimizer/CodeGen/Passes.h"
 #include "Optimizer/CodeGen/QuakeToExecMgr.h"
+#include "PassDetails.h"
 #include "llvm/Support/Debug.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/DialectConversion.h"

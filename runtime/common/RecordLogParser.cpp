@@ -8,8 +8,8 @@
 
 #include "RecordLogParser.h"
 #include "FmtCore.h"
-#include "Timing.h"
 #include "Optimizer/CodeGen/QIRAttributeNames.h"
+#include "Timing.h"
 #include "cudaq/runtime/logger/logger.h"
 
 void cudaq::RecordLogParser::parse(const std::string &outputLog) {

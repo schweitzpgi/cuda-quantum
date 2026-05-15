@@ -16,9 +16,8 @@ using namespace cudaq;
 // CHECK-LABEL:   func.func @__nvqpp__mlirgen__Teste
 // CHECK-SAME: (%[[VAL_0:.*]]: !quake.ref{{.*}})
 // CHECK:           quake.h %[[VAL_0]] : (!quake.ref) -> ()
-// CHECK:           %[[VAL_1:.*]] = quake.mz %[[VAL_0]] : (!quake.ref) -> !cc.measure_handle
-// CHECK:           return
-// CHECK:         }
+// CHECK:           %[[VAL_1:.*]] = quake.mz %[[VAL_0]] : (!quake.ref) ->
+// !cc.measure_handle CHECK:           return CHECK:         }
 
 struct Teste {
   void operator()(qubit &q) __qpu__ {
@@ -30,9 +29,8 @@ struct Teste {
 // CHECK-LABEL:   func.func @__nvqpp__mlirgen__Test
 // CHECK-SAME: ()
 // CHECK:           %[[VAL_2:.*]] = quake.alloca !quake.ref
-// CHECK:           call @__nvqpp__mlirgen__Teste{{.*}}(%[[VAL_2]]) : (!quake.ref) -> ()
-// CHECK:           return
-// CHECK:         }
+// CHECK:           call @__nvqpp__mlirgen__Teste{{.*}}(%[[VAL_2]]) :
+// (!quake.ref) -> () CHECK:           return CHECK:         }
 
 struct Test {
   void operator()() __qpu__ {

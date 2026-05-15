@@ -8,7 +8,8 @@
 
 // Simple test to make sure the tool is built and has basic functionality.
 
-// RUN: cudaq-quake --emit-llvm-file %s | FileCheck %s && FileCheck --check-prefix=LLVM %s < simple_qarray.ll
+// RUN: cudaq-quake --emit-llvm-file %s | FileCheck %s && FileCheck
+// --check-prefix=LLVM %s < simple_qarray.ll
 
 #include <cudaq.h>
 #include <cudaq/algorithm.h>
@@ -49,32 +50,28 @@ int main() {
 // CHECK-DAG:       %[[VAL_1:.*]] = arith.constant 4 : i32
 // CHECK-DAG:       %[[VAL_2:.*]] = arith.constant 0 : i32
 // CHECK:           %[[VAL_3:.*]] = quake.alloca !quake.veq<5>
-// CHECK:           %[[VAL_4:.*]] = quake.extract_ref %[[VAL_3]][0] : (!quake.veq<5>) -> !quake.ref
-// CHECK:           quake.h %[[VAL_4]] : (!quake.ref) -> ()
-// CHECK:           cc.scope {
-// CHECK:             %[[VAL_5:.*]] = cc.alloca i32
-// CHECK:             cc.store %[[VAL_2]], %[[VAL_5]] : !cc.ptr<i32>
-// CHECK:             cc.loop while {
-// CHECK:               %[[VAL_6:.*]] = cc.load %[[VAL_5]] : !cc.ptr<i32>
-// CHECK:               %[[VAL_7:.*]] = arith.cmpi slt, %[[VAL_6]], %[[VAL_1]] : i32
-// CHECK:               cc.condition %[[VAL_7]]
+// CHECK:           %[[VAL_4:.*]] = quake.extract_ref %[[VAL_3]][0] :
+// (!quake.veq<5>) -> !quake.ref CHECK:           quake.h %[[VAL_4]] :
+// (!quake.ref) -> () CHECK:           cc.scope { CHECK: %[[VAL_5:.*]] =
+// cc.alloca i32 CHECK:             cc.store %[[VAL_2]], %[[VAL_5]] :
+// !cc.ptr<i32> CHECK:             cc.loop while { CHECK: %[[VAL_6:.*]] =
+// cc.load %[[VAL_5]] : !cc.ptr<i32> CHECK:               %[[VAL_7:.*]] =
+// arith.cmpi slt, %[[VAL_6]], %[[VAL_1]] : i32 CHECK: cc.condition %[[VAL_7]]
 // CHECK:             } do {
 // CHECK:               %[[VAL_8:.*]] = cc.load %[[VAL_5]] : !cc.ptr<i32>
 // CHECK:               %[[VAL_9:.*]] = cc.cast signed %[[VAL_8]] : (i32) -> i64
-// CHECK:               %[[VAL_10:.*]] = quake.extract_ref %[[VAL_3]][%[[VAL_9]]] : (!quake.veq<5>, i64) -> !quake.ref
-// CHECK:               %[[VAL_11:.*]] = cc.load %[[VAL_5]] : !cc.ptr<i32>
-// CHECK:               %[[VAL_12:.*]] = arith.addi %[[VAL_11]], %[[VAL_0]] : i32
-// CHECK:               %[[VAL_13:.*]] = cc.cast signed %[[VAL_12]] : (i32) -> i64
-// CHECK:               %[[VAL_14:.*]] = quake.extract_ref %[[VAL_3]][%[[VAL_13]]] : (!quake.veq<5>, i64) -> !quake.ref
-// CHECK:               quake.x [%[[VAL_10]]] %[[VAL_14]] : (!quake.ref, !quake.ref) -> ()
-// CHECK:               cc.continue
-// CHECK:             } step {
-// CHECK:               %[[VAL_15:.*]] = cc.load %[[VAL_5]] : !cc.ptr<i32>
-// CHECK:               %[[VAL_16:.*]] = arith.addi %[[VAL_15]], %[[VAL_0]] : i32
-// CHECK:               cc.store %[[VAL_16]], %[[VAL_5]] : !cc.ptr<i32>
+// CHECK:               %[[VAL_10:.*]] = quake.extract_ref
+// %[[VAL_3]][%[[VAL_9]]] : (!quake.veq<5>, i64) -> !quake.ref CHECK:
+// %[[VAL_11:.*]] = cc.load %[[VAL_5]] : !cc.ptr<i32> CHECK: %[[VAL_12:.*]] =
+// arith.addi %[[VAL_11]], %[[VAL_0]] : i32 CHECK:               %[[VAL_13:.*]]
+// = cc.cast signed %[[VAL_12]] : (i32) -> i64 CHECK: %[[VAL_14:.*]] =
+// quake.extract_ref %[[VAL_3]][%[[VAL_13]]] : (!quake.veq<5>, i64) ->
+// !quake.ref CHECK:               quake.x [%[[VAL_10]]] %[[VAL_14]] :
+// (!quake.ref, !quake.ref) -> () CHECK:               cc.continue CHECK: } step
+// { CHECK:               %[[VAL_15:.*]] = cc.load %[[VAL_5]] : !cc.ptr<i32>
+// CHECK:               %[[VAL_16:.*]] = arith.addi %[[VAL_15]], %[[VAL_0]] :
+// i32 CHECK:               cc.store %[[VAL_16]], %[[VAL_5]] : !cc.ptr<i32>
 // CHECK:             }
 // CHECK:           }
-// CHECK:           %[[VAL_17:.*]] = quake.mz %[[VAL_3]] : (!quake.veq<5>) -> !cc.stdvec<!cc.measure_handle>
-// CHECK:           return
-// CHECK:         }
-
+// CHECK:           %[[VAL_17:.*]] = quake.mz %[[VAL_3]] : (!quake.veq<5>) ->
+// !cc.stdvec<!cc.measure_handle> CHECK:           return CHECK:         }

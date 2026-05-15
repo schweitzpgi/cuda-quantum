@@ -6,8 +6,8 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "cudaq.h"
 #include "Support/Version.h"
+#include "cudaq.h"
 #include "cudaq/platform/orca/orca_qpu.h"
 #include "cudaq/runtime/logger/logger.h"
 #include "cudaq_internal/compiler/RuntimeMLIR.h"

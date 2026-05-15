@@ -6,7 +6,8 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-// RUN: cudaq-quake %s | cudaq-opt --memtoreg=quantum=0 --canonicalize --apply-op-specialization --canonicalize | FileCheck %s
+// RUN: cudaq-quake %s | cudaq-opt --memtoreg=quantum=0 --canonicalize
+// --apply-op-specialization --canonicalize | FileCheck %s
 
 #include <cudaq.h>
 
@@ -34,14 +35,13 @@ struct kernel_beta {
 // CHECK-DAG:           %[[VAL_2:.*]] = arith.constant 4 : i32
 // CHECK-DAG:           %[[VAL_3:.*]] = arith.constant 1 : i32
 // CHECK-DAG:           %[[VAL_4:.*]] = arith.constant 2 : i32
-// CHECK:           %[[VAL_5:.*]]:2 = cc.loop while ((%[[VAL_6:.*]] = %[[VAL_1]], %[[VAL_7:.*]] = %[[VAL_2]]) -> (i32, i32)) {
-// CHECK:             %[[VAL_8:.*]] = arith.cmpi sgt, %[[VAL_7]], %[[VAL_1]] : i32
-// CHECK:             cc.condition %[[VAL_8]](%[[VAL_6]], %[[VAL_7]] : i32, i32)
-// CHECK:           } do {
-// CHECK:           ^bb0(%[[VAL_9:.*]]: i32, %[[VAL_10:.*]]: i32):
-// CHECK:             quake.y %[[VAL_0]] : (!quake.ref) -> ()
-// CHECK:             quake.x %[[VAL_0]] : (!quake.ref) -> ()
-// CHECK:             quake.h %[[VAL_0]] : (!quake.ref) -> ()
+// CHECK:           %[[VAL_5:.*]]:2 = cc.loop while ((%[[VAL_6:.*]] =
+// %[[VAL_1]], %[[VAL_7:.*]] = %[[VAL_2]]) -> (i32, i32)) { CHECK: %[[VAL_8:.*]]
+// = arith.cmpi sgt, %[[VAL_7]], %[[VAL_1]] : i32 CHECK: cc.condition
+// %[[VAL_8]](%[[VAL_6]], %[[VAL_7]] : i32, i32) CHECK:           } do { CHECK:
+// ^bb0(%[[VAL_9:.*]]: i32, %[[VAL_10:.*]]: i32): CHECK:             quake.y
+// %[[VAL_0]] : (!quake.ref) -> () CHECK:             quake.x %[[VAL_0]] :
+// (!quake.ref) -> () CHECK:             quake.h %[[VAL_0]] : (!quake.ref) -> ()
 // CHECK:             cc.continue %[[VAL_9]], %[[VAL_10]] : i32, i32
 // CHECK:           } step {
 // CHECK:           ^bb0(%[[VAL_11:.*]]: i32, %[[VAL_12:.*]]: i32):
@@ -76,14 +76,13 @@ struct kernel_delta {
 // CHECK-DAG:           %[[VAL_2:.*]] = arith.constant 1 : i32
 // CHECK-DAG:           %[[VAL_3:.*]] = arith.constant 4 : i32
 // CHECK-DAG:           %[[VAL_4:.*]] = arith.constant 0 : i32
-// CHECK:           %[[VAL_5:.*]]:2 = cc.loop while ((%[[VAL_6:.*]] = %[[VAL_1]], %[[VAL_7:.*]] = %[[VAL_3]]) -> (i32, i32)) {
-// CHECK:             %[[VAL_8:.*]] = arith.cmpi sgt, %[[VAL_7]], %[[VAL_4]] : i32
-// CHECK:             cc.condition %[[VAL_8]](%[[VAL_6]], %[[VAL_7]] : i32, i32)
-// CHECK:           } do {
-// CHECK:           ^bb0(%[[VAL_9:.*]]: i32, %[[VAL_10:.*]]: i32):
-// CHECK:             quake.z %[[VAL_0]] : (!quake.ref) -> ()
-// CHECK:             quake.y %[[VAL_0]] : (!quake.ref) -> ()
-// CHECK:             quake.x %[[VAL_0]] : (!quake.ref) -> ()
+// CHECK:           %[[VAL_5:.*]]:2 = cc.loop while ((%[[VAL_6:.*]] =
+// %[[VAL_1]], %[[VAL_7:.*]] = %[[VAL_3]]) -> (i32, i32)) { CHECK: %[[VAL_8:.*]]
+// = arith.cmpi sgt, %[[VAL_7]], %[[VAL_4]] : i32 CHECK: cc.condition
+// %[[VAL_8]](%[[VAL_6]], %[[VAL_7]] : i32, i32) CHECK:           } do { CHECK:
+// ^bb0(%[[VAL_9:.*]]: i32, %[[VAL_10:.*]]: i32): CHECK:             quake.z
+// %[[VAL_0]] : (!quake.ref) -> () CHECK:             quake.y %[[VAL_0]] :
+// (!quake.ref) -> () CHECK:             quake.x %[[VAL_0]] : (!quake.ref) -> ()
 // CHECK:             cc.continue %[[VAL_9]], %[[VAL_10]] : i32, i32
 // CHECK:           } step {
 // CHECK:           ^bb0(%[[VAL_11:.*]]: i32, %[[VAL_12:.*]]: i32):
@@ -98,4 +97,3 @@ struct kernel_delta {
 // CHECK-LABEL:   func.func @__nvqpp__mlirgen__kernel_beta
 // CHECK-LABEL:   func.func @__nvqpp__mlirgen__kernel_gamma
 // CHECK-LABEL:   func.func @__nvqpp__mlirgen__kernel_delta
-

@@ -6,12 +6,12 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "PassDetails.h"
 #include "Frontend/nvqpp/AttributeNames.h"
 #include "Optimizer/Dialect/CC/CCOps.h"
 #include "Optimizer/Dialect/Quake/QuakeDialect.h"
 #include "Optimizer/Dialect/Quake/QuakeTypes.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/Passes.h"

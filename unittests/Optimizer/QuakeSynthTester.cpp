@@ -6,10 +6,10 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "cudaq.h"
 #include "Optimizer/Builder/Runtime.h"
 #include "Optimizer/CodeGen/Passes.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "cudaq.h"
 #include "cudaq/algorithm.h"
 #include "cudaq_internal/compiler/RuntimeMLIR.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"

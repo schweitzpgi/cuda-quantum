@@ -39,11 +39,11 @@ int main() {
   return 0;
 }
 
-// CHECK-LABEL:   func.func @__nvqpp__mlirgen__function_test_kernel._Z11test_kerneli(
-// CHECK-SAME:      %[[VAL_0:.*]]: i32) -> i32 attributes {"cudaq-entrypoint", "cudaq-kernel", no_this} {
-// CHECK:           %[[VAL_1:.*]] = arith.constant 2 : i32
-// CHECK:           %[[VAL_2:.*]] = arith.constant 1 : i32
-// CHECK:           cc.if(%{{.*}}) {
+// CHECK-LABEL:   func.func
+// @__nvqpp__mlirgen__function_test_kernel._Z11test_kerneli( CHECK-SAME:
+// %[[VAL_0:.*]]: i32) -> i32 attributes {"cudaq-entrypoint", "cudaq-kernel",
+// no_this} { CHECK:           %[[VAL_1:.*]] = arith.constant 2 : i32 CHECK:
+// %[[VAL_2:.*]] = arith.constant 1 : i32 CHECK:           cc.if(%{{.*}}) {
 // CHECK:             cc.unwind_return %[[VAL_2]] : i32
 // CHECK:           } else {
 // CHECK:             cc.unwind_return %[[VAL_1]] : i32

@@ -7,9 +7,9 @@
  ******************************************************************************/
 
 #include "DecompositionPatterns.h"
-#include "PassDetails.h"
 #include "Frontend/nvqpp/AttributeNames.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/Threading.h"
 #include "mlir/InitAllDialects.h"

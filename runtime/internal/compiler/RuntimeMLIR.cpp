@@ -7,8 +7,6 @@
  ******************************************************************************/
 
 #include "cudaq_internal/compiler/RuntimeMLIR.h"
-#include "common/CodeGenConfig.h"
-#include "common/Timing.h"
 #include "Optimizer/Builder/Intrinsics.h"
 #include "Optimizer/CodeGen/IQMJsonEmitter.h"
 #include "Optimizer/CodeGen/OpenQASMEmitter.h"
@@ -22,6 +20,8 @@
 #include "Support/TargetConfig.h"
 #include "Verifier/QIRLLVMIRDialect.h"
 #include "Verifier/QIRSpec.h"
+#include "common/CodeGenConfig.h"
+#include "common/Timing.h"
 #include "cudaq/runtime/logger/cudaq_fmt.h"
 #include "cudaq/runtime/logger/logger.h"
 #include "llvm/Bitcode/BitcodeWriter.h"

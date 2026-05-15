@@ -6,13 +6,13 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "PassDetails.h"
 #include "Optimizer/Builder/Intrinsics.h"
 #include "Optimizer/Builder/Runtime.h"
 #include "Optimizer/CodeGen/QIRFunctionNames.h"
 #include "Optimizer/CodeGen/QIROpaqueStructTypes.h"
 #include "Optimizer/Dialect/Quake/QuakeTypes.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/Debug.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"

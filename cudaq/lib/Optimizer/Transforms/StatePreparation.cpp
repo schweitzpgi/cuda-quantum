@@ -6,10 +6,10 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "PassDetails.h"
 #include "Optimizer/Builder/Factory.h"
 #include "Optimizer/Dialect/Quake/QuakeTypes.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 #include "llvm/Support/Debug.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"

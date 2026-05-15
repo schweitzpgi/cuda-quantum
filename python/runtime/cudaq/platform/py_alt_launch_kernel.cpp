@@ -7,10 +7,6 @@
  ******************************************************************************/
 
 #include "py_alt_launch_kernel.h"
-#include "common/AnalogHamiltonian.h"
-#include "common/ArgumentWrapper.h"
-#include "common/Environment.h"
-#include "common/Timing.h"
 #include "Optimizer/Builder/Marshal.h"
 #include "Optimizer/Builder/Runtime.h"
 #include "Optimizer/CAPI/Dialects.h"
@@ -18,6 +14,10 @@
 #include "Optimizer/CodeGen/OptUtils.h"
 #include "Optimizer/CodeGen/Passes.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "common/AnalogHamiltonian.h"
+#include "common/ArgumentWrapper.h"
+#include "common/Environment.h"
+#include "common/Timing.h"
 #include "cudaq/platform.h"
 #include "cudaq/platform/nvqpp_interface.h"
 #include "cudaq/platform/qpu.h"

@@ -10,9 +10,10 @@
 
 // RUN: cudaq-quake --emit-llvm-file %s | FileCheck %s
 
-// We should only have 2 kernels created even though we instantiate ghz<5> twice. 
-// CHECK-LABEL: module attributes {
-// CHECK-SAME:  quake.mangled_name_map = {__nvqpp__mlirgen__ghzILm10EE = "_ZN3ghzILm10EEclEv", __nvqpp__mlirgen__ghzILm5EE = "_ZN3ghzILm5EEclEv"}
+// We should only have 2 kernels created even though we instantiate ghz<5>
+// twice. CHECK-LABEL: module attributes { CHECK-SAME:  quake.mangled_name_map =
+// {__nvqpp__mlirgen__ghzILm10EE = "_ZN3ghzILm10EEclEv",
+// __nvqpp__mlirgen__ghzILm5EE = "_ZN3ghzILm5EEclEv"}
 
 // CHECK-LABEL: func.func @__nvqpp__mlirgen__ghzILm5EE
 // CHECK: quake.h
@@ -26,12 +27,12 @@
 // CHECK: quake.x
 // CHECK: quake.mz
 
-
 #include <cudaq.h>
 #include <cudaq/algorithm.h>
 
 // Define a quantum kernel
-template <std::size_t N> struct ghz {
+template <std::size_t N>
+struct ghz {
   auto operator()() __qpu__ {
     cudaq::qarray<N> q;
     h(q[0]);

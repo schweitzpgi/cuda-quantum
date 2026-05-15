@@ -6,11 +6,11 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "PassDetails.h"
 #include "Optimizer/Builder/Factory.h"
 #include "Optimizer/CodeGen/QIRAttributeNames.h"
 #include "Optimizer/Dialect/Quake/QuakeTypes.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 #include "nlohmann/json.hpp"
 #include "llvm/Support/Debug.h"
 #include "mlir/Pass/Pass.h"

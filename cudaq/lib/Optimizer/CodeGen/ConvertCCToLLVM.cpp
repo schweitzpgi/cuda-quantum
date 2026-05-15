@@ -6,10 +6,10 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "PassDetails.h"
 #include "Optimizer/Builder/Intrinsics.h"
 #include "Optimizer/CodeGen/CCToLLVM.h"
 #include "Optimizer/CodeGen/Passes.h"
+#include "PassDetails.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/Debug.h"
 #include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"

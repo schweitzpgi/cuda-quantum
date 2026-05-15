@@ -6,11 +6,11 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "PassDetails.h"
-#include "common/EigenDense.h"
 #include "Optimizer/Builder/Factory.h"
 #include "Optimizer/CodeGen/Passes.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
+#include "common/EigenDense.h"
 #include "llvm/Support/Debug.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"

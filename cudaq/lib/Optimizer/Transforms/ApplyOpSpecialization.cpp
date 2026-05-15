@@ -7,10 +7,10 @@
  ******************************************************************************/
 
 #include "LoopAnalysis.h"
-#include "PassDetails.h"
 #include "Optimizer/Builder/Factory.h"
 #include "Optimizer/Dialect/Characteristics.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 #include "Todo.h"
 #include "llvm/Support/Debug.h"
 #include "mlir/IR/Dominance.h"

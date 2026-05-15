@@ -7,9 +7,6 @@
  ******************************************************************************/
 
 #include "cudaq_internal/compiler/JIT.h"
-#include "common/CompiledModule.h"
-#include "common/Environment.h"
-#include "common/Timing.h"
 #include "Frontend/nvqpp/AttributeNames.h"
 #include "Optimizer/Builder/Runtime.h"
 #include "Optimizer/CodeGen/Passes.h"
@@ -18,6 +15,9 @@
 #include "Optimizer/CodeGen/QIROpaqueStructTypes.h"
 #include "Optimizer/Dialect/Quake/QuakeOps.h"
 #include "Verifier/QIRLLVMIRDialect.h"
+#include "common/CompiledModule.h"
+#include "common/Environment.h"
+#include "common/Timing.h"
 #include "cudaq/runtime/logger/logger.h"
 #include "cudaq_internal/compiler/RuntimeMLIR.h"
 #include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"

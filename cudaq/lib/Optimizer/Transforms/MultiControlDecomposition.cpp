@@ -7,9 +7,9 @@
  ******************************************************************************/
 
 #include "DecompositionPatterns.h"
-#include "PassDetails.h"
 #include "Optimizer/Dialect/Quake/QuakeInterfaces.h"
 #include "Optimizer/Transforms/Passes.h"
+#include "PassDetails.h"
 
 namespace cudaq::opt {
 #define GEN_PASS_DEF_MULTICONTROLDECOMPOSITION

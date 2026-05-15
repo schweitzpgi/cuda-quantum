@@ -23,20 +23,20 @@ __qpu__ void range_qubit() {
 // CHECK-DAG:       %[[VAL_1:.*]] = arith.constant 1 : i64
 // CHECK-DAG:       %[[VAL_2:.*]] = arith.constant 0 : i64
 // CHECK-DAG:       %[[VAL_3:.*]] = quake.alloca !quake.veq<10>
-// CHECK:           %[[VAL_4:.*]] = cc.loop while ((%[[VAL_5:.*]] = %[[VAL_2]]) -> (i64)) {
-// CHECK:             %[[VAL_6:.*]] = arith.cmpi slt, %[[VAL_5]], %[[VAL_0]] : i64
-// CHECK:             cc.condition %[[VAL_6]](%[[VAL_5]] : i64)
+// CHECK:           %[[VAL_4:.*]] = cc.loop while ((%[[VAL_5:.*]] = %[[VAL_2]])
+// -> (i64)) { CHECK:             %[[VAL_6:.*]] = arith.cmpi slt, %[[VAL_5]],
+// %[[VAL_0]] : i64 CHECK:             cc.condition %[[VAL_6]](%[[VAL_5]] : i64)
 // CHECK:           } do {
 // CHECK:           ^bb0(%[[VAL_7:.*]]: i64):
-// CHECK:             %[[VAL_9:.*]] = quake.extract_ref %[[VAL_3]][%[[VAL_7]]] : (!quake.veq<10>, i64) -> !quake.ref
-// CHECK:             cc.scope {
-// CHECK:               %[[VAL_110:.*]] = quake.mx %[[VAL_9]] : (!quake.ref) -> !cc.measure_handle
+// CHECK:             %[[VAL_9:.*]] = quake.extract_ref %[[VAL_3]][%[[VAL_7]]] :
+// (!quake.veq<10>, i64) -> !quake.ref CHECK:             cc.scope { CHECK:
+// %[[VAL_110:.*]] = quake.mx %[[VAL_9]] : (!quake.ref) -> !cc.measure_handle
 // CHECK:               %[[HA:.*]] = cc.alloca !cc.measure_handle
-// CHECK:               cc.store %[[VAL_110]], %[[HA]] : !cc.ptr<!cc.measure_handle>
-// CHECK:               %[[HL:.*]] = cc.load %[[HA]] : !cc.ptr<!cc.measure_handle>
-// CHECK:               %[[VAL_10:.*]] = quake.discriminate %[[HL]] :
-// CHECK:               %[[VAL_11:.*]] = cc.alloca i1
-// CHECK:               cc.store %[[VAL_10]], %[[VAL_11]] : !cc.ptr<i1>
+// CHECK:               cc.store %[[VAL_110]], %[[HA]] :
+// !cc.ptr<!cc.measure_handle> CHECK:               %[[HL:.*]] = cc.load %[[HA]]
+// : !cc.ptr<!cc.measure_handle> CHECK:               %[[VAL_10:.*]] =
+// quake.discriminate %[[HL]] : CHECK:               %[[VAL_11:.*]] = cc.alloca
+// i1 CHECK:               cc.store %[[VAL_10]], %[[VAL_11]] : !cc.ptr<i1>
 // CHECK:             }
 // CHECK:             cc.continue %[[VAL_7]] : i64
 // CHECK:           } step {

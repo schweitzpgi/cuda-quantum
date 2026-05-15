@@ -35,7 +35,7 @@ struct t1 {
 // clang-format on
 
 struct VectorBoolReturn {
-   std::vector<bool> operator()() __qpu__ {
+  std::vector<bool> operator()() __qpu__ {
     cudaq::qvector q(4);
     return cudaq::to_bools(mz(q));
   }
@@ -56,7 +56,7 @@ struct VectorBoolReturn {
 // clang-format on
 
 struct VectorBoolResult {
-   std::vector<bool> operator()() __qpu__ {
+  std::vector<bool> operator()() __qpu__ {
     cudaq::qvector q(4);
     std::vector<bool> vec = cudaq::to_bools(mz(q));
     return vec;

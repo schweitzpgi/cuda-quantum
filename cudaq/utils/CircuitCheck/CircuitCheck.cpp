@@ -6,9 +6,9 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
-#include "UnitaryBuilder.h"
 #include "Optimizer/Dialect/CC/CCDialect.h"
 #include "Optimizer/Dialect/Quake/QuakeDialect.h"
+#include "UnitaryBuilder.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"

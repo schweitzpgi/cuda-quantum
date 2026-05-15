@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "common/RuntimeTarget.h"
 #include "Support/TargetConfig.h"
+#include "common/RuntimeTarget.h"
 #include "cudaq/host_config.h"
 #include <filesystem>
 #include <map>

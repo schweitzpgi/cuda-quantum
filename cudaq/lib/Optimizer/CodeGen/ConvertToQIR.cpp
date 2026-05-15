@@ -7,8 +7,6 @@
  ******************************************************************************/
 
 #include "CodeGenOps.h"
-#include "PassDetails.h"
-#include "QuakeToCodegen.h"
 #include "Optimizer/Builder/Intrinsics.h"
 #include "Optimizer/CodeGen/CCToLLVM.h"
 #include "Optimizer/CodeGen/Passes.h"
@@ -16,6 +14,8 @@
 #include "Optimizer/CodeGen/QIRFunctionNames.h"
 #include "Optimizer/CodeGen/QIROpaqueStructTypes.h"
 #include "Optimizer/CodeGen/QuakeToLLVM.h"
+#include "PassDetails.h"
+#include "QuakeToCodegen.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/FormatVariadic.h"
