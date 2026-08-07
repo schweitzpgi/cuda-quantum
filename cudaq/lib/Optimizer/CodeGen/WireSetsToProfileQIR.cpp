@@ -8,6 +8,7 @@
 
 #include "PassDetails.h"
 #include "nlohmann/json.hpp"
+#include "cudaq/Optimizer/Builder/CompilerNames.h"
 #include "cudaq/Optimizer/Builder/Intrinsics.h"
 #include "cudaq/Optimizer/Builder/RuntimeNames.h"
 #include "cudaq/Optimizer/CallGraphFix.h"
