@@ -74,6 +74,38 @@ static constexpr IntrinsicCode intrinsicTable[] = {
   func.func private @_ZNK5cudaq10pauli_word11_nvqpp_sizeEv(%pw : !cc.ptr<i8>) -> i64
 )#"},
 
+    // Frees `%ptr` if and only if it is not null. Used to reclaim a
+    // dynamically-sized list's `malloc`-backed buffer, which may not have
+    // been populated yet the first time a given store to it executes (e.g.
+    // the first iteration of a loop that reassigns the list each pass).
+    {"__cudaq__check_and_free",
+     {"free"},
+     R"#(
+  func.func private @__cudaq__check_and_free(%ptr: !cc.ptr<i8>) {
+    %addr = cc.cast %ptr : (!cc.ptr<i8>) -> i64
+    %c0_i64 = arith.constant 0 : i64
+    %isNonNull = arith.cmpi ne, %addr, %c0_i64 : i64
+    cc.if(%isNonNull) {
+      func.call @free(%ptr) : (!cc.ptr<i8>) -> ()
+    }
+    return
+  }
+)#"},
+
+    // Frees `%oldPtr` if and only if it is not null (see
+    // `__cudaq__check_and_free`), then returns a fresh `%size`-byte buffer
+    // from `malloc`. Used to replace a dynamically-sized list's backing
+    // buffer with a new one, in one call, whenever the list is (re)assigned.
+    {"__cudaq__check_and_reallocate",
+     {"__cudaq__check_and_free", "malloc"},
+     R"#(
+  func.func private @__cudaq__check_and_reallocate(%oldPtr: !cc.ptr<i8>, %size: i64) -> !cc.ptr<i8> {
+    call @__cudaq__check_and_free(%oldPtr) : (!cc.ptr<i8>) -> ()
+    %new = call @malloc(%size) : (i64) -> !cc.ptr<i8>
+    return %new : !cc.ptr<i8>
+  }
+)#"},
+
     {cudaq::runtime::deviceCodeHolderAdd, {}, R"#(
   llvm.func @__cudaq_deviceCodeHolderAdd(!llvm.ptr, !llvm.ptr) attributes {sym_visibility = "private"}
 )#"},

@@ -298,6 +298,14 @@ static void createPythonAOTPipeline(OpPassManager &pm,
   // NB: This pipeline should be kept in synch with the pipeline in nvq++.
   pm.addPass(cudaq::opt::createVerifyAtomicQuantumRegions());
   pm.addNestedPass<func::FuncOp>(cudaq::opt::createVariableCoalesce());
+  // NB: temporarily added to validate the `ast_bridge.py` convention
+  // (null-initialized header in the entry block, real buffer allocated
+  // wherever the assignment naturally is) that relies on `shrink-wrap` to
+  // sink a header+buffer pair into a loop/if nest when that is safe and
+  // profitable. `variable-coalesce` above still does its own, unrelated job
+  // of merging SSA-only (no classical backing store, e.g. measure handle)
+  // locals across `if`/`else` branches into `cc.if` results.
+  pm.addNestedPass<func::FuncOp>(cudaq::opt::createShrinkWrap());
   pm.addNestedPass<func::FuncOp>(cudaq::opt::createUnwindLowering());
   pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
   pm.addNestedPass<func::FuncOp>(cudaq::opt::createInjectImplicitOutput());

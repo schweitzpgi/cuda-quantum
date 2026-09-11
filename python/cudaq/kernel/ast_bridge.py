@@ -149,12 +149,12 @@ class PyScopedSymbolTable(object):
         self._scope = None
         self.emitError = error_handler or default_error_handler
 
-    def pushScope(self, scope_root):
+    def enterFuncDef(self, scope_root):
         self._scope = PyScopedSymbolTable.Scope(scope_root, parent=self._scope)
 
-    def popScope(self):
+    def exitFuncDef(self):
         if not self._scope:
-            self.emitError("symbol table has no scopes to pop")
+            self.emitError("symbol table has no function definition to exit")
         elif self._scope.depth > 0:
             self.emitError("unfinished block(s) in symbol table")
         else:
@@ -432,54 +432,19 @@ class PyASTBridge(ast.NodeVisitor):
         self.isSubscriptRoot = False
         self.verbose = verbose
         self.currentNode = None
-        # `for` loop targets that are used nowhere outside their loop, keyed on
-        # `id(<ast.For node>)`
-        self.loopLocalTargets = {}
-        self.sinkAllocaNames = set()
-
-    def __analyzeLoopLocalTargets(self, statements, argNames):
-        """Record, for each `for` loop in `statements`, which of its target
-        variables never occur outside that loop.
-
-        Python keeps a loop variable alive after its loop, so by default the
-        storage for one is allocated in the function's entry block. That is
-        needed only when something below the loop can still read it; a variable
-        that no code outside the loop mentions can live in the loop body
-        instead. Keeping it there matters because `memtoreg` promotes an
-        entry-block slot into a value carried by every enclosing loop, whether
-        or not anything reads it, and those dead loop-carried values defeat
-        `cc.loop` reversal in the apply-op-specialization pass.
-        """
-        forNodes = [
-            n for stmt in statements for n in ast.walk(stmt)
-            if isinstance(n, ast.For)
-        ]
-        if not forNodes:
-            return
-        allNames = [
-            n for stmt in statements for n in ast.walk(stmt)
-            if isinstance(n, ast.Name)
-        ]
-        for forNode in forNodes:
-            if forNode.orelse:
-                continue
-            targets = {
-                t.id
-                for t in ast.walk(forNode.target)
-                if isinstance(t, ast.Name)
-            }
-            targets -= set(argNames)
-            if not targets:
-                continue
-            insideLoop = {id(n) for n in ast.walk(forNode)}
-            usedOutside = {
-                n.id
-                for n in allNames
-                if n.id in targets and id(n) not in insideLoop
-            }
-            local = targets - usedOutside
-            if local:
-                self.loopLocalTargets[id(forNode)] = local
+        # Stack of lists, one per function-like body currently being
+        # compiled (the kernel itself, and each nested `def` inside it).
+        # Each list holds the entry-block pointer slots of local variables
+        # whose current value is a dynamically-sized list backed by heap
+        # storage (see `visit_ListComp`), so every return path out of that
+        # function can free whatever is still live.
+        self.heapListSlotsStack = []
+        # One-shot signal set by `visit_ListComp` immediately before pushing
+        # a dynamically-sized list value, mirroring `currentAssignVariableName`.
+        # `process_assignment` consumes (and clears) it right after visiting
+        # the assignment's RHS to decide whether the malloc/free protocol
+        # applies to this assignment.
+        self.lastValueIsHeapManagedList = False
 
     def isCudaqName(self, name):
         """Return True if `name` is 'cudaq' or a known alias for the cudaq
@@ -932,6 +897,104 @@ class PyASTBridge(ast.NodeVisitor):
         """Return True if the given Block has a Terminator operation."""
         return cudaq_runtime.blockHasTerminator(block)
 
+    def __i8PtrType(self):
+        return cc.PointerType.get(self.getIntegerType(8))
+
+    def __freeSequenceDataIfNonNull(self, seqValue):
+        """Given a `!cc.sequence<T>` value whose data buffer may be a
+        `malloc`-backed heap buffer created by `visit_ListComp`'s dynamic
+        (non-compile-time-constant length) path, `free` that buffer if its
+        data pointer is not null. A null data pointer means the slot this
+        value was loaded from was never actually populated (its entry-block
+        `cc.alloca` was zero-initialized precisely so this check is safe the
+        very first time it runs)."""
+        load_intrinsic(self.module, '__cudaq__check_and_free')
+        dataPtrTy = cc.PointerType.get(
+            cc.ArrayType.get(cc.SequenceType.getElementType(seqValue.type)))
+        data = cc.SequenceDataOp(dataPtrTy, seqValue).result
+        raw = cc.CastOp(self.__i8PtrType(), data).result
+        func.CallOp([], '__cudaq__check_and_free', [raw])
+
+    def __storeHeapManagedList(self, value, destination):
+        """Store a freshly constructed, heap-list-managed `value` (a
+        `!cc.sequence<T>` produced by `visit_ListComp`'s dynamic path) into
+        `destination` (the variable's own entry-block pointer slot), and
+        start tracking that slot for `__freeLiveHeapManagedLists`. Freeing
+        the buffer `destination` previously pointed to (if any) has already
+        happened, in `visit_ListComp`, as part of allocating `value`'s own
+        buffer - see `__cudaq__check_and_reallocate`."""
+        cc.StoreOp(value, destination)
+        if destination not in self.heapListSlotsStack[-1]:
+            self.heapListSlotsStack[-1].append(destination)
+
+    def __freeLiveHeapManagedLists(self):
+        """Emitted immediately before every path out of the function
+        currently being compiled (`func.ReturnOp`/`cc.UnwindReturnOp`),
+        freeing every dynamically-sized list local's buffer that is still
+        live. Any list actually being returned has already been given its
+        own independent heap copy by `copy_list_to_heap` in `visit_Return`
+        by the time this runs, so it is always safe to free these."""
+        for slot in self.heapListSlotsStack[-1]:
+            self.__freeSequenceDataIfNonNull(cc.LoadOp(slot).result)
+
+    def __oldHeapListDataPtrOrNull(self, seqTy):
+        """Returns the data pointer of the value currently held by the
+        variable this list comprehension is being assigned to (so
+        `__cudaq__check_and_reallocate` can free it), or a null pointer if
+        there is no such variable, it has no value yet, or its current value
+        is not itself heap-managed (e.g. it currently holds a fixed-size,
+        stack-allocated list - freeing that would be memory corruption, not
+        a leak, so it is simply never touched and left for its own scope to
+        reclaim)."""
+        name = self.currentAssignVariableName
+        if name and self.heapListSlotsStack:
+            addr = self.symbolTable.getIfAccessible(name)
+            if (addr is not None and cc.PointerType.isinstance(addr.type) and
+                    cc.PointerType.getElementType(addr.type) == seqTy and
+                    addr in self.heapListSlotsStack[-1]):
+                old = cc.LoadOp(addr).result
+                dataPtrTy = cc.PointerType.get(
+                    cc.ArrayType.get(cc.SequenceType.getElementType(seqTy)))
+                data = cc.SequenceDataOp(dataPtrTy, old).result
+                return cc.CastOp(self.__i8PtrType(), data).result
+        return cc.CastOp(self.__i8PtrType(), self.getConstantInt(0)).result
+
+    def __literalIntConstant(self, node):
+        """Returns the Python `int` value of `node` if it is a literal
+        integer constant (optionally negated), else `None`."""
+        if isinstance(node, ast.Constant) and isinstance(node.value, int):
+            return node.value
+        if (isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub) and
+                isinstance(node.operand, ast.Constant) and
+                isinstance(node.operand.value, int)):
+            return -node.operand.value
+        return None
+
+    def __literalRangeTripCount(self, args):
+        """Returns the trip count of `range(*args)` as a Python `int` if
+        every argument is a literal integer constant, else `None`. Used to
+        recognize a list comprehension over a `range(...)` whose length is
+        actually known at compile time (e.g. `range(5)`), even though the
+        general `range(...)` handling in `visit_ListComp` always builds an
+        MLIR value for the trip count, since the bounds need not be
+        constants in general (e.g. `range(n)`)."""
+        vals = [self.__literalIntConstant(a) for a in args]
+        if any(v is None for v in vals):
+            return None
+        if len(vals) == 3:
+            start, stop, step = vals
+        elif len(vals) == 2:
+            start, stop = vals
+            step = 1
+        elif len(vals) == 1:
+            start, stop = 0, vals[0]
+            step = 1
+        else:
+            return None
+        if step == 0:
+            return None
+        return len(range(start, stop, step))
+
     def isArithmeticType(self, type):
         """Return True if the given type is an integer, float, or complex
         type."""
@@ -1056,12 +1119,16 @@ class PyASTBridge(ast.NodeVisitor):
 
     def __createSequenceWithKnownValues(self, listElementValues):
         assert (len(set((v.type for v in listElementValues))) == 1)
-        arrSize = self.getConstantInt(len(listElementValues))
         elemTy = listElementValues[0].type
         # If this is an `i1`, turns it into an `i8` array.
         isBool = elemTy == self.getIntegerType(1)
         if isBool:
             elemTy = self.getIntegerType(8)
+        # Allocated wherever this list literal naturally is (possibly nested
+        # inside a `cc.loop`/`cc.if`'s own `cc.scope`); see the comment on
+        # the analogous buffer in `toHandleIfBareStruct` for why this is not
+        # hoisted here.
+        arrSize = self.getConstantInt(len(listElementValues))
         alloca = cc.AllocaOp(cc.PointerType.get(cc.ArrayType.get(elemTy)),
                              TypeAttr.get(elemTy),
                              seqSize=arrSize).result
@@ -1325,15 +1392,18 @@ class PyASTBridge(ast.NodeVisitor):
         lambdaFct = cc.CreateLambdaOp(ty)
         initBlock = Block.create_at_start(lambdaFct.initRegion, [])
 
-        self.symbolTable.pushScope(initBlock)
+        self.symbolTable.enterFuncDef(initBlock)
+        self.heapListSlotsStack.append([])
         with InsertionPoint(initBlock):
             self.symbolTable.beginBlock()
             [self.visit(stm) for stm in statements]
             # Note that explicit return statements are forbidden within
             # functions defined inside quantum kernels.
+            self.__freeLiveHeapManagedLists()
             cc.ReturnOp([])
             self.symbolTable.endBlock()
-        self.symbolTable.popScope()
+        self.heapListSlotsStack.pop()
+        self.symbolTable.exitFuncDef()
         return lambdaFct.result
 
     def __insertDbgStmt(self, value, dbgStmt):
@@ -2072,7 +2142,8 @@ class PyASTBridge(ast.NodeVisitor):
             # Create the entry block
             entry_block = f.add_entry_block()
 
-            self.symbolTable.pushScope(entry_block)
+            self.symbolTable.enterFuncDef(entry_block)
+            self.heapListSlotsStack.append([])
             with InsertionPoint(entry_block):
                 self.symbolTable.beginBlock()
                 # Process function arguments like any other assignments.
@@ -2103,8 +2174,6 @@ class PyASTBridge(ast.NodeVisitor):
                 # errors on assignments that may lead to unexpected behavior
                 # (i.e. behavior not following expected Python behavior).
                 self.buildingFunctionBody = True
-                self.__analyzeLoopLocalTargets(
-                    node.body, [arg.arg for arg in node.args.args])
                 with trace.span("ast_bridge.visit_function_body",
                                 statement_count=len(node.body)):
                     for n in node.body:
@@ -2117,6 +2186,7 @@ class PyASTBridge(ast.NodeVisitor):
                 if not self.hasTerminator(entry_block):
                     # If the function has a known (non-None) return type, emit
                     # an `undef` of that type and return it; else return void
+                    self.__freeLiveHeapManagedLists()
                     if self.signature.return_type is not None:
                         undef = cc.UndefOp(self.signature.return_type).result
                         func.ReturnOp([undef])
@@ -2124,7 +2194,8 @@ class PyASTBridge(ast.NodeVisitor):
                         func.ReturnOp([])
                 self.buildingFunctionBody = False
                 self.symbolTable.endBlock()
-            self.symbolTable.popScope()
+            self.heapListSlotsStack.pop()
+            self.symbolTable.exitFuncDef()
             if not self.symbolTable.isEmpty:
                 self.emitFatalError(
                     "processing error - unprocessed scope(s) in symbol table",
@@ -2245,6 +2316,7 @@ class PyASTBridge(ast.NodeVisitor):
                     # representation for `dataclasses` to allow that.
                     self.visit(value)
                     value = self.popValue()
+                    self.lastValueIsHeapManagedList = False
                     self.currentAssignVariableName = None
                     return target, value
 
@@ -2259,7 +2331,9 @@ class PyASTBridge(ast.NodeVisitor):
             if not isinstance(target_root, ast.Name):
                 self.emitFatalError("invalid target for assignment", node)
 
-            def update_in_parent_block(destination, value):
+            def update_in_parent_block(destination,
+                                       value,
+                                       isHeapManagedList=False):
                 assert self.symbolTable.isFromParentBlock(target_root.id)
                 # Quantum and callable locals are the only remaining SSA value
                 # (no classical backing store) types. We cannot re-assign SSA
@@ -2273,7 +2347,10 @@ class PyASTBridge(ast.NodeVisitor):
                 value = self.changeOperandToType(expectedTy,
                                                  value,
                                                  allowDemotion=False)
-                cc.StoreOp(value, destination)
+                if isHeapManagedList:
+                    self.__storeHeapManagedList(value, destination)
+                else:
+                    cc.StoreOp(value, destination)
 
             # Handle assignment `var = expr`
             if isinstance(target, ast.Name):
@@ -2287,12 +2364,16 @@ class PyASTBridge(ast.NodeVisitor):
                     value = self.symbolTable[value.id]
                     if cc.PointerType.isinstance(value.type):
                         value = cc.LoadOp(value).result
+                isHeapManagedList = False
                 if isinstance(value, ast.AST):
                     # Retain the variable name for potential children (like
                     # `mz(q, registerName=...)`)
                     self.currentAssignVariableName = target.id
+                    self.lastValueIsHeapManagedList = False
                     self.visit(value)
                     value = self.popValue()
+                    isHeapManagedList = self.lastValueIsHeapManagedList
+                    self.lastValueIsHeapManagedList = False
                     self.currentAssignVariableName = None
                 storeAsVal = storedAsValue(value)
 
@@ -2309,6 +2390,16 @@ class PyASTBridge(ast.NodeVisitor):
                     if (cc.StructType.isinstance(value.type) and
                             cc.StructType.getName(value.type) != 'tuple'):
                         structTy = value.type
+                        # Allocated wherever this assignment naturally is
+                        # (possibly nested inside a `cc.loop`/`cc.if`'s own
+                        # `cc.scope`). The variable's own header pointer,
+                        # below, is null-initialized in the entry block for
+                        # exactly this reason: it lets `shrink-wrap` (and
+                        # `stack-frame-prealloc`) decide, with a full
+                        # dataflow view neither available nor appropriate to
+                        # duplicate here, whether this buffer can safely stay
+                        # at the entry block or should instead be sunk back
+                        # down into the loop/if nest alongside its header.
                         buffer = cc.AllocaOp(cc.PointerType.get(structTy),
                                              TypeAttr.get(structTy)).result
                         cc.StoreOp(value, buffer)
@@ -2319,7 +2410,9 @@ class PyASTBridge(ast.NodeVisitor):
 
                 if self.symbolTable.isFromParentBlock(target_root.id):
                     destination = self.symbolTable[target.id]
-                    update_in_parent_block(destination, value)
+                    update_in_parent_block(destination,
+                                           value,
+                                           isHeapManagedList=isHeapManagedList)
                     return target, None
 
                 # The target variable has either not been defined or is defined
@@ -2329,15 +2422,40 @@ class PyASTBridge(ast.NodeVisitor):
                 if storeAsVal:
                     return target, value
 
-                # A variable that outlives the block it is assigned in needs
-                # its storage in the function's entry block.
-                allocaBlock = (InsertionPoint.current.block
-                               if target.id in self.sinkAllocaNames else
-                               self.symbolTable.scopeRoot)
-                with InsertionPoint.at_block_begin(allocaBlock):
+                # A dataclass handle (a pointer, from `toHandleIfBareStruct`
+                # above) or a list value's header is null-initialized here,
+                # in the entry block, regardless of where the real buffer
+                # backing it ends up being allocated (which, for both, is
+                # wherever this assignment naturally is - see the comments
+                # on `toHandleIfBareStruct` and `__createSequenceWithKnownValues`
+                # /`visit_ListComp`). This keeps the entry block's only
+                # content for this variable a trivial, always-safe write,
+                # which is what lets `shrink-wrap` sink the header down into
+                # a loop/if nest alongside its buffer when that is safe and
+                # profitable, instead of this function trying to guess that
+                # itself with only a local, per-assignment view.
+                with InsertionPoint.at_block_begin(self.symbolTable.scopeRoot):
                     address = cc.AllocaOp(cc.PointerType.get(value.type),
                                           TypeAttr.get(value.type)).result
-                cc.StoreOp(value, address)
+                    if cc.PointerType.isinstance(value.type):
+                        nullHandle = cc.CastOp(value.type,
+                                               self.getConstantInt(0)).result
+                        cc.StoreOp(nullHandle, address)
+                    elif cc.SequenceType.isinstance(value.type):
+                        nullData = cc.CastOp(
+                            cc.PointerType.get(
+                                cc.ArrayType.get(
+                                    cc.SequenceType.getElementType(
+                                        value.type))),
+                            self.getConstantInt(0)).result
+                        nullSeq = cc.SequenceInitOp(
+                            value.type, nullData,
+                            length=self.getConstantInt(0)).result
+                        cc.StoreOp(nullSeq, address)
+                if isHeapManagedList:
+                    self.__storeHeapManagedList(value, address)
+                else:
+                    cc.StoreOp(value, address)
                 return target, address
 
             # Handle updates of existing variables (target is a combination of
@@ -2369,6 +2487,9 @@ class PyASTBridge(ast.NodeVisitor):
             self.currentAssignVariableName = ''
             self.visit(value)
             mlirVal = self.popValue()
+            # This assigns a single element, never a whole heap-managed list
+            # value, regardless of what `value` internally constructs.
+            self.lastValueIsHeapManagedList = False
             self.currentAssignVariableName = None
             assert not cc.PointerType.isinstance(mlirVal.type)
 
@@ -4356,6 +4477,14 @@ class PyASTBridge(ast.NodeVisitor):
         is_range_source = (isinstance(node.generators[0].iter, ast.Call) and
                            isinstance(node.generators[0].iter.func, ast.Name)
                            and node.generators[0].iter.func.id == 'range')
+        # If `range(...)`'s own bounds are literal constants, the number of
+        # elements the comprehension can ever produce is known here at
+        # compile time (a filter clause can only make the *actual* length
+        # smaller at runtime, never the upper bound the buffer needs), so
+        # the buffer can be a normal, entry-block-hoisted, fixed-size local
+        # like any other - see its use below.
+        constTripCount = (self.__literalRangeTripCount(
+            node.generators[0].iter.args) if is_range_source else None)
         if is_range_source:
             startVal, endVal, stepVal, isDecrementing = \
                 self.__processRangeLoopIterationBounds(
@@ -4746,9 +4875,40 @@ class PyASTBridge(ast.NodeVisitor):
         if listElemTy == self.getIntegerType(1):
             listElemTy = self.getIntegerType(8)
         listTy = cc.ArrayType.get(listElemTy)
-        listValue = cc.AllocaOp(cc.PointerType.get(listTy),
-                                TypeAttr.get(listElemTy),
-                                seqSize=iterableSize).result
+        if constTripCount is not None:
+            # The buffer's length is known here at compile time (e.g. a
+            # comprehension over `range(5)`), so, exactly like a literal
+            # `[...]` (see `__createSequenceWithKnownValues`), it is an
+            # ordinary fixed-size local - allocated wherever this
+            # comprehension naturally is, no `malloc`/`free` involved.
+            listValue = cc.AllocaOp(
+                cc.PointerType.get(listTy),
+                TypeAttr.get(listElemTy),
+                seqSize=self.getConstantInt(constTripCount)).result
+        else:
+            # `iterableSize` is not known at compile time here, so this
+            # buffer cannot simply be hoisted to the entry block the way a
+            # fixed-size local's storage is: its size may depend on a value
+            # only available here (e.g. a loop induction variable), which
+            # would not dominate the entry block. Instead it is `malloc`-ed
+            # fresh every time this code runs, via
+            # `__cudaq__check_and_reallocate`, which also frees the buffer
+            # this same variable held before (if any, and if it too was
+            # heap-managed - see `__oldHeapListDataPtrOrNull`), and every
+            # return path frees whatever is still live. This means a
+            # comprehension that runs many times (e.g. once per loop
+            # iteration) grows and shrinks the heap rather than the stack,
+            # so it cannot cause unbounded stack growth - the tradeoff is
+            # the cost of a `malloc`/`free` pair per assignment.
+            load_intrinsic(self.module, '__cudaq__check_and_reallocate')
+            oldPtr = self.__oldHeapListDataPtrOrNull(resultVecTy)
+            elemByteSize = cc.SizeOfOp(self.getIntegerType(),
+                                       TypeAttr.get(listElemTy)).result
+            totalBytes = arith.MulIOp(elemByteSize, iterableSize).result
+            rawPtr = func.CallOp([self.__i8PtrType()],
+                                 '__cudaq__check_and_reallocate',
+                                 [oldPtr, totalBytes]).results[0]
+            listValue = cc.CastOp(cc.PointerType.get(listTy), rawPtr).result
 
         def storeElementAt(storeIdx):
             self.visit(node.elt)
@@ -4775,6 +4935,7 @@ class PyASTBridge(ast.NodeVisitor):
             self.createInvariantForLoop(bodyBuilder, iterableSize)
             res = cc.SequenceInitOp(resultVecTy, listValue,
                                     length=iterableSize).result
+            self.lastValueIsHeapManagedList = constTripCount is None
             self.pushValue(res)
             return
 
@@ -4808,6 +4969,7 @@ class PyASTBridge(ast.NodeVisitor):
         finalCount = loop.results[1]
         res = cc.SequenceInitOp(resultVecTy, listValue,
                                 length=finalCount).result
+        self.lastValueIsHeapManagedList = constTripCount is None
         self.pushValue(res)
         return
 
@@ -5344,8 +5506,6 @@ class PyASTBridge(ast.NodeVisitor):
             else:
                 self.emitFatalError('{} iterable type not supported.', node)
 
-        loopLocal = self.loopLocalTargets.get(id(node), set())
-
         def blockBuilder(iterVar, stmts):
             self.symbolTable.beginBlock()
             values = getValues(iterVar)
@@ -5353,14 +5513,7 @@ class PyASTBridge(ast.NodeVisitor):
             # iteration variable(s) to have consistent behavior.
             assignNode = ast.Assign(targets=[node.target], value=values)
             assignNode.lineno = node.lineno
-            outerSink = self.sinkAllocaNames
-            self.sinkAllocaNames = {
-                name for name in loopLocal if name not in self.symbolTable
-            }
-            try:
-                self.visit(assignNode)
-            finally:
-                self.sinkAllocaNames = outerSink
+            self.visit(assignNode)
             self.buildScopedBlock(stmts)
             self.symbolTable.endBlock()
 
@@ -5687,6 +5840,7 @@ class PyASTBridge(ast.NodeVisitor):
                 self.emitFatalError(
                     "return statement in a value-returning kernel must return a value",
                     node)
+            self.__freeLiveHeapManagedLists()
             if self.symbolTable.scopeDepth > 1:
                 # We are in an inner block, release all MLIR scopes before
                 # returning.
@@ -5757,6 +5911,10 @@ class PyASTBridge(ast.NodeVisitor):
         # wherever they can prove it is unnecessary (e.g. when the caller
         # already has live storage for the value).
         result = self.__migrateLists(result, copy_list_to_heap)
+
+        # `result` above is already an independent heap copy of any list it
+        # contains, so it is always safe to free our own locals now.
+        self.__freeLiveHeapManagedLists()
 
         if self.symbolTable.scopeDepth > 1:
             # We are in an inner block, release all MLIR scopes before returning.
