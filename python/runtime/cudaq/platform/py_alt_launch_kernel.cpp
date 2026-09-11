@@ -1183,6 +1183,12 @@ static MlirModule synthesizeKernel(nanobind::object kernel,
   pm.addPass(cudaq::opt::createArgumentSynthesisPass(
       kernelRefs, substRefs, /*changeSemantics=*/false));
   pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
+  // A list whose length the Python bridge could not determine to be a
+  // compile-time constant (see `ast_bridge.py`'s `visit_ListComp`) may turn
+  // out to have been constant all along once argument synthesis has
+  // substituted concrete values above; reclaim it back onto the stack.
+  pm.addNestedPass<func::FuncOp>(cudaq::opt::createStackAllocateConstLists());
+  pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
   pm.addPass(createSymbolDCEPass());
 
   // Run state preparation for quantum devices (or their emulation) only.

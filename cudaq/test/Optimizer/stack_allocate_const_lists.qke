@@ -1,0 +1,239 @@
+// ========================================================================== //
+// Copyright (c) 2026 NVIDIA Corporation & Affiliates.                         //
+// All rights reserved.                                                       //
+//                                                                            //
+// This source code and the accompanying materials are made available under   //
+// the terms of the Apache License 2.0 which accompanies this distribution.   //
+// ========================================================================== //
+
+// RUN: cudaq-opt --stack-allocate-const-lists %s | FileCheck %s
+
+func.func private @free(!cc.ptr<i8>)
+func.func private @malloc(i64) -> !cc.ptr<i8>
+func.func private @__cudaq__check_and_free(!cc.ptr<i8>)
+func.func private @__cudaq__check_and_reallocate(!cc.ptr<i8>, i64) -> !cc.ptr<i8>
+
+// A fresh list (the "old" pointer is a literal null): the whole inlined
+// check-and-free/malloc idiom becomes a plain `cc.alloca`, and the trailing
+// free of the buffer's own result is removed.
+func.func @fresh_inlined() -> i64 {
+  %c0_i64 = arith.constant 0 : i64
+  %c24_i64 = arith.constant 24 : i64
+  %old = cc.cast %c0_i64 : (i64) -> !cc.ptr<i8>
+  %oldAsInt = cc.cast %old : (!cc.ptr<i8>) -> i64
+  %isNonNull = arith.cmpi ne, %oldAsInt, %c0_i64 : i64
+  cc.if(%isNonNull) {
+    func.call @free(%old) : (!cc.ptr<i8>) -> ()
+  }
+  %buf = func.call @malloc(%c24_i64) : (i64) -> !cc.ptr<i8>
+  %arr = cc.cast %buf : (!cc.ptr<i8>) -> !cc.ptr<!cc.array<i64 x ?>>
+  %elt = cc.compute_ptr %arr[0] : (!cc.ptr<!cc.array<i64 x ?>>) -> !cc.ptr<i64>
+  %v = cc.load %elt : !cc.ptr<i64>
+  %bufAsInt = cc.cast %buf : (!cc.ptr<i8>) -> i64
+  %bufIsNonNull = arith.cmpi ne, %bufAsInt, %c0_i64 : i64
+  cc.if(%bufIsNonNull) {
+    func.call @free(%buf) : (!cc.ptr<i8>) -> ()
+  }
+  return %v : i64
+}
+
+// CHECK-LABEL:   func.func @fresh_inlined() -> i64 {
+// CHECK:           %[[COUNT:.*]] = arith.constant 3 : i64
+// CHECK:           %[[ALLOCA:.*]] = cc.alloca i64[%[[COUNT]] : i64]
+// CHECK-NOT:       call @malloc
+// CHECK-NOT:       call @free
+// CHECK-NOT:       call @__cudaq__check_and_free
+// CHECK:           return
+
+// Same shape, but still spelled as calls to the named intrinsics (in case
+// some pipeline ordering reaches this pass before inlining).
+func.func @fresh_named_calls() -> i64 {
+  %c0_i64 = arith.constant 0 : i64
+  %c24_i64 = arith.constant 24 : i64
+  %old = cc.cast %c0_i64 : (i64) -> !cc.ptr<i8>
+  %buf = func.call @__cudaq__check_and_reallocate(%old, %c24_i64) : (!cc.ptr<i8>, i64) -> !cc.ptr<i8>
+  %arr = cc.cast %buf : (!cc.ptr<i8>) -> !cc.ptr<!cc.array<i64 x ?>>
+  %elt = cc.compute_ptr %arr[0] : (!cc.ptr<!cc.array<i64 x ?>>) -> !cc.ptr<i64>
+  %v = cc.load %elt : !cc.ptr<i64>
+  func.call @__cudaq__check_and_free(%buf) : (!cc.ptr<i8>) -> ()
+  return %v : i64
+}
+
+// CHECK-LABEL:   func.func @fresh_named_calls() -> i64 {
+// CHECK:           %[[COUNT:.*]] = arith.constant 3 : i64
+// CHECK:           %[[ALLOCA:.*]] = cc.alloca i64[%[[COUNT]] : i64]
+// CHECK-NOT:       call @malloc
+// CHECK-NOT:       call @__cudaq__check_and_reallocate
+// CHECK-NOT:       call @__cudaq__check_and_free
+// CHECK:           return
+
+// A dynamic byte count (an actual function argument, not foldable to a
+// constant): the idiom must be left completely untouched.
+func.func @dynamic_size_untouched(%bytes: i64) -> i64 {
+  %c0_i64 = arith.constant 0 : i64
+  %old = cc.cast %c0_i64 : (i64) -> !cc.ptr<i8>
+  %oldAsInt = cc.cast %old : (!cc.ptr<i8>) -> i64
+  %isNonNull = arith.cmpi ne, %oldAsInt, %c0_i64 : i64
+  cc.if(%isNonNull) {
+    func.call @free(%old) : (!cc.ptr<i8>) -> ()
+  }
+  %buf = func.call @malloc(%bytes) : (i64) -> !cc.ptr<i8>
+  %arr = cc.cast %buf : (!cc.ptr<i8>) -> !cc.ptr<!cc.array<i64 x ?>>
+  %elt = cc.compute_ptr %arr[0] : (!cc.ptr<!cc.array<i64 x ?>>) -> !cc.ptr<i64>
+  %v = cc.load %elt : !cc.ptr<i64>
+  %bufAsInt = cc.cast %buf : (!cc.ptr<i8>) -> i64
+  %bufIsNonNull = arith.cmpi ne, %bufAsInt, %c0_i64 : i64
+  cc.if(%bufIsNonNull) {
+    func.call @free(%buf) : (!cc.ptr<i8>) -> ()
+  }
+  return %v : i64
+}
+
+// CHECK-LABEL:   func.func @dynamic_size_untouched(
+// CHECK-SAME:       %[[BYTES:.*]]: i64) -> i64 {
+// CHECK:           call @malloc(%[[BYTES]])
+// CHECK:           call @free
+
+// Reassignment inside a loop: the buffer (constant size) is converted to a
+// `cc.alloca` unconditionally, since that conversion never depends on where
+// the *previous* buffer came from. The loop-carried "old" pointer, however,
+// is a block argument - on some iterations it may be this same loop's own
+// (now-converted) previous `cc.alloca`, but on the very first iteration it
+// is whatever was passed in from outside the loop, which this pass cannot
+// see through a block argument to verify. Since it cannot prove the freed
+// pointer is always safe to drop, it conservatively leaves that leading
+// check-and-free in place rather than risk a leak on that first iteration.
+func.func @loop_reassignment(%outsidePtr: !cc.ptr<i8>, %n: i64) -> i64 {
+  %c0_i64 = arith.constant 0 : i64
+  %c1_i64 = arith.constant 1 : i64
+  %c24_i64 = arith.constant 24 : i64
+  %result:2 = cc.loop while ((%i = %c0_i64, %old = %outsidePtr) -> (i64, !cc.ptr<i8>)) {
+    %cmp = arith.cmpi slt, %i, %n : i64
+    cc.condition %cmp(%i, %old : i64, !cc.ptr<i8>)
+  } do {
+  ^bb0(%i: i64, %old: !cc.ptr<i8>):
+    %oldAsInt = cc.cast %old : (!cc.ptr<i8>) -> i64
+    %isNonNull = arith.cmpi ne, %oldAsInt, %c0_i64 : i64
+    cc.if(%isNonNull) {
+      func.call @free(%old) : (!cc.ptr<i8>) -> ()
+    }
+    %buf = func.call @malloc(%c24_i64) : (i64) -> !cc.ptr<i8>
+    %bufArr = cc.cast %buf : (!cc.ptr<i8>) -> !cc.ptr<!cc.array<i64 x ?>>
+    %bufElt = cc.compute_ptr %bufArr[0] : (!cc.ptr<!cc.array<i64 x ?>>) -> !cc.ptr<i64>
+    cc.store %i, %bufElt : !cc.ptr<i64>
+    cc.continue %i, %buf : i64, !cc.ptr<i8>
+  } step {
+  ^bb0(%i: i64, %old: !cc.ptr<i8>):
+    %next = arith.addi %i, %c1_i64 : i64
+    cc.continue %next, %old : i64, !cc.ptr<i8>
+  }
+  %arr = cc.cast %result#1 : (!cc.ptr<i8>) -> !cc.ptr<!cc.array<i64 x ?>>
+  %elt = cc.compute_ptr %arr[0] : (!cc.ptr<!cc.array<i64 x ?>>) -> !cc.ptr<i64>
+  %v = cc.load %elt : !cc.ptr<i64>
+  return %v : i64
+}
+
+// CHECK-LABEL:   func.func @loop_reassignment(
+// CHECK-SAME:       %[[OUTSIDE:.*]]: !cc.ptr<i8>,
+// CHECK-SAME:       %[[N:.*]]: i64) -> i64 {
+// CHECK:           cc.loop
+// CHECK:             %[[OLD:.*]] = cc.cast %{{.*}} : (!cc.ptr<i8>) -> i64
+// CHECK:             %[[NZ:.*]] = arith.cmpi ne, %[[OLD]], %{{.*}} : i64
+// CHECK:             cc.if(%[[NZ]]) {
+// CHECK:               func.call @free
+// CHECK:             }
+// CHECK:             %[[COUNT:.*]] = arith.constant 3 : i64
+// CHECK:             %[[ALLOCA:.*]] = cc.alloca i64[%[[COUNT]] : i64]
+// CHECK-NOT:         call @malloc
+// CHECK:           }
+// CHECK:           return
+
+// --------------------------------------------------------------------------
+// Negative tests: shapes that are close to, but not exactly, the pattern
+// this pass matches must be left completely untouched rather than risk an
+// incorrect rewrite.
+// --------------------------------------------------------------------------
+
+// A constant byte count that is not evenly divisible by the (8-byte) element
+// type recovered from the buffer's use: cannot compute an element count, so
+// the allocation is left alone.
+func.func @bytes_not_divisible_untouched() -> i64 {
+  %c0_i64 = arith.constant 0 : i64
+  %c25_i64 = arith.constant 25 : i64
+  %old = cc.cast %c0_i64 : (i64) -> !cc.ptr<i8>
+  %oldAsInt = cc.cast %old : (!cc.ptr<i8>) -> i64
+  %isNonNull = arith.cmpi ne, %oldAsInt, %c0_i64 : i64
+  cc.if(%isNonNull) {
+    func.call @free(%old) : (!cc.ptr<i8>) -> ()
+  }
+  %buf = func.call @malloc(%c25_i64) : (i64) -> !cc.ptr<i8>
+  %arr = cc.cast %buf : (!cc.ptr<i8>) -> !cc.ptr<!cc.array<i64 x ?>>
+  %elt = cc.compute_ptr %arr[0] : (!cc.ptr<!cc.array<i64 x ?>>) -> !cc.ptr<i64>
+  %v = cc.load %elt : !cc.ptr<i64>
+  %bufAsInt = cc.cast %buf : (!cc.ptr<i8>) -> i64
+  %bufIsNonNull = arith.cmpi ne, %bufAsInt, %c0_i64 : i64
+  cc.if(%bufIsNonNull) {
+    func.call @free(%buf) : (!cc.ptr<i8>) -> ()
+  }
+  return %v : i64
+}
+
+// CHECK-LABEL:   func.func @bytes_not_divisible_untouched() -> i64 {
+// CHECK:           call @malloc
+// CHECK:           call @free
+
+// The buffer is never cast to a typed array/element pointer anywhere, so
+// its element type (and hence element size) cannot be recovered at all:
+// left alone rather than guessed at.
+func.func @no_element_type_untouched() -> i64 {
+  %c0_i64 = arith.constant 0 : i64
+  %c24_i64 = arith.constant 24 : i64
+  %old = cc.cast %c0_i64 : (i64) -> !cc.ptr<i8>
+  %oldAsInt = cc.cast %old : (!cc.ptr<i8>) -> i64
+  %isNonNull = arith.cmpi ne, %oldAsInt, %c0_i64 : i64
+  cc.if(%isNonNull) {
+    func.call @free(%old) : (!cc.ptr<i8>) -> ()
+  }
+  %buf = func.call @malloc(%c24_i64) : (i64) -> !cc.ptr<i8>
+  %bufAsInt = cc.cast %buf : (!cc.ptr<i8>) -> i64
+  %v = cc.load %buf : !cc.ptr<i8>
+  %v64 = cc.cast unsigned %v : (i8) -> i64
+  %bufIsNonNull = arith.cmpi ne, %bufAsInt, %c0_i64 : i64
+  cc.if(%bufIsNonNull) {
+    func.call @free(%buf) : (!cc.ptr<i8>) -> ()
+  }
+  return %v64 : i64
+}
+
+// CHECK-LABEL:   func.func @no_element_type_untouched() -> i64 {
+// CHECK:           call @malloc
+// CHECK:           call @free
+
+// A `cc.if` immediately precedes the `malloc` call but does not match the
+// check-and-free idiom at all (unrelated callee, unrelated condition): it
+// must not be misidentified as the "free the old buffer" step, nor touched
+// in any way - it is simply not part of this pattern. The `malloc` itself
+// still converts, since that conversion never depends on what (if anything)
+// precedes it.
+func.func private @somethingElse()
+
+func.func @unrelated_leading_if_not_confused(%cond: i1) -> i64 {
+  %c24_i64 = arith.constant 24 : i64
+  cc.if(%cond) {
+    func.call @somethingElse() : () -> ()
+  }
+  %buf = func.call @malloc(%c24_i64) : (i64) -> !cc.ptr<i8>
+  %arr = cc.cast %buf : (!cc.ptr<i8>) -> !cc.ptr<!cc.array<i64 x ?>>
+  %elt = cc.compute_ptr %arr[0] : (!cc.ptr<!cc.array<i64 x ?>>) -> !cc.ptr<i64>
+  %v = cc.load %elt : !cc.ptr<i64>
+  return %v : i64
+}
+
+// CHECK-LABEL:   func.func @unrelated_leading_if_not_confused(
+// CHECK-SAME:       %[[COND:.*]]: i1) -> i64 {
+// CHECK:           cc.if(%[[COND]]) {
+// CHECK:             func.call @somethingElse
+// CHECK:           }
+// CHECK:           %[[COUNT:.*]] = arith.constant 3 : i64
+// CHECK:           %[[ALLOCA:.*]] = cc.alloca i64[%[[COUNT]] : i64]
+// CHECK-NOT:       call @malloc

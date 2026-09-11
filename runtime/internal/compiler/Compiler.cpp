@@ -244,6 +244,13 @@ cudaq_internal::compiler::Compiler::prepareModule(const std::string &kernelName,
       pm.addPass(cudaq::opt::createArgumentSynthesisPass(
           kernelRefs, substRefs, target.argumentSynthChangeSemantics));
       pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
+      // A list whose length the Python bridge could not determine to be a
+      // compile-time constant (see `ast_bridge.py`'s `visit_ListComp`) may
+      // turn out to have been constant all along once argument synthesis has
+      // substituted concrete values above; reclaim it back onto the stack.
+      pm.addNestedPass<mlir::func::FuncOp>(
+          cudaq::opt::createStackAllocateConstLists());
+      pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
       pm.addPass(
           cudaq::opt::createLambdaLifting({.constantPropagation = true}));
       // We must inline these lambda calls before apply specialization as it

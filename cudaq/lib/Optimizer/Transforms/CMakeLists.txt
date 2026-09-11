@@ -86,6 +86,7 @@ add_cudaq_library(OptTransforms
   RunSemanticsHackery.cpp
   SROA.cpp
   ShrinkWrap.cpp
+  StackAllocateConstLists.cpp
   StackFramePrealloc.cpp
   StatePreparation.cpp
   UnitarySynthesis.cpp

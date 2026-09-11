@@ -2027,6 +2027,53 @@ def ShrinkWrap : Pass<"shrink-wrap", "mlir::func::FuncOp"> {
   }];
 }
 
+def StackAllocateConstLists : Pass<"stack-allocate-const-lists", "mlir::func::FuncOp"> {
+  let summary = "Convert a dynamically-sized Python list back into a "
+                "fixed-size, stack-allocated one when its size turns out to "
+                "be a compile-time constant after argument synthesis.";
+  let description = [{
+    The Python AST bridge cannot always tell whether a list comprehension's
+    length is a compile-time constant: `[x for x in range(n)]` depends on
+    whatever value `n` happens to be bound to, which may only become a known
+    constant once `argument-synthesis` has substituted a concrete argument
+    for a kernel parameter. Since the bridge must be conservative before
+    that point, it lowers such a list to a `malloc`-backed buffer, freeing
+    and reallocating it via the `__cudaq__check_and_reallocate`/
+    `__cudaq__check_and_free` intrinsics on every (re)assignment, to avoid
+    unbounded stack growth for a length that could vary from one execution
+    to the next (see `ast_bridge.py`'s `visit_ListComp`).
+
+    Once argument synthesis has run, some of those lengths turn out to have
+    been constant all along. This pass looks for a `malloc` call whose byte
+    count is a compile-time constant, together with the surrounding
+    "free the old buffer, if any, then allocate a new one" idiom emitted by
+    the intrinsics above - whether that idiom is still present as calls to
+    those intrinsics, or has already been inlined into its constituent
+    `cc.cast`/`arith.cmpi`/`cc.if`/`call @free`/`call @malloc` operations -
+    and replaces it with a plain, fixed-size `cc.alloca`, exactly as if the
+    bridge had known the length was constant from the start. The
+    `cc.sequence_init` wrapping the buffer is updated to use the
+    now-constant element count in place of whatever dynamic value it
+    previously carried.
+
+    A buffer's own "free the buffer this call replaced" step is only elided
+    when that previous buffer is provably not itself still a genuine heap
+    allocation (it is a literal null, or it is another buffer this same
+    pass has already converted to a `cc.alloca` in this run); in any other
+    case the corresponding `free` is left in place rather than risk a leak.
+    A buffer's own trailing `free` of its *own* result is always removed
+    once that result has become a `cc.alloca`, since calling `free` on a
+    stack pointer is undefined behavior, not merely a missed optimization.
+
+    This pass only ever makes a targeted, structural substitution; if the
+    surrounding IR does not match the expected shape (e.g. the element type
+    cannot be recovered from a use of the buffer, or its size is not evenly
+    divisible by the element size), it leaves that allocation untouched
+    rather than risk an incorrect rewrite.
+  }];
+  let dependentDialects = ["cudaq::cc::CCDialect"];
+}
+
 def StackFramePrealloc : Pass<"stack-frame-prealloc", "mlir::func::FuncOp"> {
   let summary = "Stack frame preallocation.";
   let description = [{
