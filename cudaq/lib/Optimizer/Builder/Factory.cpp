@@ -405,13 +405,20 @@ cc::PointerType factory::getIndexedObjectType(mlir::Type eleTy) {
   return cc::PointerType::get(cc::ArrayType::get(eleTy));
 }
 
-Type factory::getSRetElementType(FunctionType funcTy) {
+Type factory::getSRetElementType(FunctionType funcTy, ModuleOp module) {
   assert(funcTy.getNumResults() && "function type must have results");
   auto *ctx = funcTy.getContext();
   if (funcTy.getNumResults() > 1)
     return cc::StructType::get(ctx, funcTy.getResults());
   if (auto spanTy = dyn_cast<cc::SpanLikeType>(funcTy.getResult(0)))
-    return stlHostVectorType(spanTy.getElementType());
+    // The element type must itself be converted to its real host-side
+    // representation before building the host triple: for a recursively
+    // dynamic element (e.g. std::vector<std::vector<T>>), the raw device
+    // element type (a `cc.sequence<T>` span) is not the real host storage
+    // type (a `std::vector<T>` triple), and convertToHostSideType does not
+    // fix up a pointer's pointee type after the fact.
+    return stlHostVectorType(
+        convertToHostSideType(spanTy.getElementType(), module));
   return funcTy.getResult(0);
 }
 
@@ -649,7 +656,8 @@ FunctionType factory::toHostSideFuncType(FunctionType funcTy, bool addThisPtr,
       // returned via a sret argument in the first position. When this argument
       // is added, the this pointer becomes the second argument. Both are opaque
       // pointers at this point.
-      auto eleTy = convertToHostSideType(getSRetElementType(funcTy), module);
+      auto eleTy =
+          convertToHostSideType(getSRetElementType(funcTy, module), module);
       inputTys.push_back(cc::PointerType::get(eleTy));
       hasSRet = true;
     } else {

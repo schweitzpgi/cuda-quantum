@@ -672,12 +672,15 @@ def DesugarCableOps : Pass<"desugar-cable-ops"> {
   let dependentDialects = ["cudaq::quake::QuakeDialect"];
 }
 
-def DistributedDeviceCall : Pass<"distributed-device-call", "mlir::ModuleOp"> {
-  let summary = "Translate cc.device_call operations";
+def QIRDeviceCall : Pass<"qir-device-call", "mlir::ModuleOp"> {
+  let summary = "Translate cc.device_call operations to a QIR-vendor passthrough";
 
   let description = [{
-    Perform the translation of cc.device_call to a set of substeps for a
-    distributed memory model.
+    Lower cc.device_call to a QIR-vendor style passthrough call: encode a
+    stable per-callback id (via an MD5 hash of the callee name) as a
+    `passthrough` function attribute on the callee and replace the
+    device_call with a direct call, letting a vendor's runtime resolve the
+    callback out of band. Also resolves cc.resolve_device_ptr operations.
   }];
 
   let dependentDialects = ["mlir::LLVM::LLVMDialect"];
@@ -689,6 +692,22 @@ def DistributedDeviceCall : Pass<"distributed-device-call", "mlir::ModuleOp"> {
       "device call (default=false). The default implementation has weak "
       "linkage, i.e., allowed to be overridden at link time.">
   ];
+}
+
+def DistributedDeviceCall : Pass<"distributed-device-call", "mlir::ModuleOp"> {
+  let summary = "Translate cc.device_call operations to the generalized "
+                "distributed-memory reference implementation";
+
+  let description = [{
+    Lower cc.device_call to the generalized, distributed-memory reference
+    implementation: autogenerate marshal/unmarshal functions that reuse the
+    kernel-launch thunk buffer format and dispatch through the runtime's
+    callback hook. This is required if different processing units in the
+    aggregate QPU have distributed (not shared) memory spaces. Also resolves
+    cc.resolve_device_ptr operations.
+  }];
+
+  let dependentDialects = ["mlir::LLVM::LLVMDialect"];
 }
 
 def EraseNoise : Pass<"erase-noise"> {
